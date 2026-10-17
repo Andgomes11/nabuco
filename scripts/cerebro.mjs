@@ -111,8 +111,7 @@ function tabelaMetricas(m, papeis) {
   });
   const larg = cab.map((c, i) => Math.max(c.length, ...linhas.map(l => l[i].length)));
   const fmt = l => l.map((c, i) => c.padEnd(larg[i])).join('  ').trimEnd();
-  return [fmt(cab), ...linhas.map(fmt)].join('
-');
+  return [fmt(cab), ...linhas.map(fmt)].join('\n');
 }
 
 const comandos = {
