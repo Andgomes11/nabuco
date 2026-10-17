@@ -48,7 +48,9 @@ test('hook: projeto sem nabuco → sai 0 sem saída', () => {
 });
 
 test('hook: stdin vazio ou inválido → sai 0 sem saída', () => {
-  assert.equal(gate(undefined).stdout, '');
+  const u = gate(undefined);
+  assert.equal(u.status, 0);
+  assert.equal(u.stdout, '');
   const r = spawnSync(process.execPath, [GATE], { cwd: proj, input: '{oops', encoding: 'utf8', env: env() });
   assert.equal(r.status, 0); assert.equal(r.stdout, '');
 });
@@ -84,6 +86,42 @@ test('hook: arquivos da tarefa corrompidos → não bloqueia, avisa no stderr', 
   assert.equal(r.status, 0);
   assert.equal(r.stdout, '');
   assert.match(r.stderr, /gate ignorado/);
+});
+
+function prepararBloqueio() {
+  tarefa('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug');
+  tarefa('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  tarefa('aprovar');
+  return readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+}
+
+test('hook: trava anti-loop libera após 3 bloqueios seguidos', () => {
+  const ativa = prepararBloqueio();
+  const p = { cwd: proj, stop_hook_active: true };
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  const r = gate(p);
+  assert.equal(r.status, 0); assert.equal(r.stdout, '');
+  assert.match(r.stderr, /3 vezes/);
+  const dir = join(proj, '.nabuco', 'tarefas', ativa);
+  assert.equal(JSON.parse(readFileSync(join(dir, 'estado.json'), 'utf8')).fase, 'aguardando_usuario');
+  assert.match(readFileSync(join(dir, 'eventos.jsonl'), 'utf8'), /"tipo":"gate_liberado"/);
+});
+
+test('hook: stop_hook_active false reinicia o contador', () => {
+  prepararBloqueio();
+  gate({ cwd: proj, stop_hook_active: true });
+  gate({ cwd: proj, stop_hook_active: true });
+  assert.equal(JSON.parse(gate({ cwd: proj, stop_hook_active: false }).stdout).decision, 'block');
+  assert.equal(JSON.parse(gate({ cwd: proj, stop_hook_active: true }).stdout).decision, 'block');
+});
+
+test('hook: bloqueio sai mesmo com NABUCO_HOME não gravável', () => {
+  prepararBloqueio();
+  const arq = join(base, 'arquivo'); writeFileSync(arq, 'x');
+  const r = spawnSync(process.execPath, [GATE], { cwd: proj, input: JSON.stringify({ cwd: proj }), encoding: 'utf8', env: { ...env(), NABUCO_HOME: join(arq, 'sub') } });
+  assert.equal(r.status, 0);
+  assert.equal(JSON.parse(r.stdout).decision, 'block');
 });
 
 test('hook: pasta da tarefa apagada mas "ativa" ainda aponta → não bloqueia', () => {
