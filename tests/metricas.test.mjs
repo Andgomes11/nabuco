@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { calcularMetricas, lerHistorico } from '../scripts/lib/metricas.mjs';
+import { calcularMetricas, lerHistorico, leitorHistorico } from '../scripts/lib/metricas.mjs';
 
 let relogio = 0;
 const ts = () => new Date(Date.UTC(2026, 0, 1) + (relogio++) * 60000).toISOString();
@@ -172,4 +172,67 @@ test('fontes: só tarefas da janela entram; escapes e tentativas apontam os even
   const iFalha = evs.findIndex(e => e.tipo === 'criterio');
   assert.ok(m.dev.fontes.tentativas_ate_verde.includes(iFalha));
   assert.deepEqual(m.dev.fontes.escapes, [evs.length - 1]);
+});
+
+// ---------- leitor com cache (painel) ----------
+const linhaEv = (i, extra = '') => JSON.stringify({ ts: ts(), tipo: `t${i}`, projeto: 'p', tarefa: 'x', papel: 'dev', dados: { s: `ação ✓ ${extra}` } }) + '\n';
+
+test('leitorHistorico: crescimento incremental dá o mesmo resultado que a leitura completa (linha parcial fica para depois)', () => {
+  const d = mkdtempSync(join(tmpdir(), 'nabuco-hist-'));
+  try {
+    const arq = join(d, 'historico.jsonl');
+    const ler = leitorHistorico(d);
+    assert.deepEqual(ler(), [], 'arquivo ausente => []');
+    let texto = '';
+    for (let i = 0; i < 6; i++) texto += linhaEv(i);
+    texto += '{quebrada\n' + JSON.stringify({ sem: 'tipo' }) + '\r\n';
+    for (let i = 6; i < 9; i++) texto += linhaEv(i);
+    const bytes = Buffer.from(texto, 'utf8');
+    // corta em pedaços de tamanhos variados, inclusive no meio de uma linha e de um caractere multibyte
+    writeFileSync(arq, '');
+    let pos = 0, passo = 1;
+    while (pos < bytes.length) {
+      const fim = Math.min(bytes.length, pos + passo);
+      appendFileSync(arq, bytes.subarray(pos, fim));
+      pos = fim; passo = (passo * 7) % 53 + 1;
+      assert.deepEqual(ler(), lerHistorico(d), `após ${pos} bytes`);
+    }
+    assert.equal(ler().length, 9);
+    assert.ok(ler.estatisticas.incrementais > 0, 'leu só o trecho novo');
+    assert.equal(ler.estatisticas.completas, 1, 'uma leitura completa só (a primeira com arquivo)');
+    // sem mudança: nem lê
+    const antes = { ...ler.estatisticas };
+    ler(); ler();
+    assert.deepEqual(ler.estatisticas, antes);
+    // linha final completa mas sem \n (editada à mão) conta, como na leitura completa
+    appendFileSync(arq, linhaEv(99).trimEnd());
+    assert.deepEqual(ler(), lerHistorico(d));
+    assert.equal(ler().length, 10);
+    // quem chama não estraga o cache
+    ler().push({ tipo: 'intruso' });
+    assert.equal(ler().length, 10);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test('leitorHistorico: arquivo que encolheu ou foi regravado => releitura completa', () => {
+  const d = mkdtempSync(join(tmpdir(), 'nabuco-hist-'));
+  try {
+    const arq = join(d, 'historico.jsonl');
+    const ler = leitorHistorico(d);
+    writeFileSync(arq, linhaEv(1) + linhaEv(2) + linhaEv(3));
+    assert.equal(ler().length, 3);
+    writeFileSync(arq, linhaEv(4));
+    assert.deepEqual(ler(), lerHistorico(d));
+    assert.deepEqual(ler().map(e => e.tipo), ['t4']);
+    assert.equal(ler.estatisticas.completas, 2);
+    // regravado com conteúdo diferente e MAIOR: o começo mudou, não dá para só acrescentar
+    writeFileSync(arq, linhaEv(5, 'x') + linhaEv(6) + linhaEv(7));
+    assert.deepEqual(ler().map(e => e.tipo), ['t5', 't6', 't7']);
+    assert.deepEqual(ler(), lerHistorico(d));
+    // apagado => [] e recomeça
+    rmSync(arq);
+    assert.deepEqual(ler(), []);
+    writeFileSync(arq, linhaEv(8));
+    assert.deepEqual(ler().map(e => e.tipo), ['t8']);
+  } finally { rmSync(d, { recursive: true, force: true }); }
 });

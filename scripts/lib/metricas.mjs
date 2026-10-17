@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, openSync, fstatSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { PAPEIS_CEREBRO, ESCRITORES, AMOSTRA_MINIMA, JANELA_TAREFAS } from './constantes.mjs';
 
@@ -12,8 +12,11 @@ const tempo = e => { const t = Date.parse(e.ts); return Number.isNaN(t) ? -Infin
 export function lerHistorico(home) {
   const arq = join(home, 'historico.jsonl');
   if (!existsSync(arq)) return [];
-  const eventos = [];
-  for (const linha of readFileSync(arq, 'utf8').split(/\r?\n/)) {
+  return parsearLinhas(readFileSync(arq, 'utf8'));
+}
+
+function parsearLinhas(texto, eventos = []) {
+  for (const linha of texto.split(/\r?\n/)) {
     if (!linha.trim()) continue;
     try {
       const e = JSON.parse(linha);
@@ -21,6 +24,65 @@ export function lerHistorico(home) {
     } catch { /* linha corrompida: ignora */ }
   }
   return eventos;
+}
+
+const PREFIXO = 256; // bytes do começo guardados para notar um arquivo regravado (não só crescido)
+
+// Leitor de historico.jsonl com cache, para o painel (que lê a cada requisição e a cada recálculo).
+// O histórico é append-only: sem mudança de (mtime, tamanho) devolve o cache; se só cresceu, lê apenas o
+// trecho novo. Só linhas terminadas em \n entram no cache; o resto (linha parcial de uma escrita em curso)
+// é relido na próxima vez, mas se já for um evento válido entra no resultado, igual a lerHistorico.
+// Encolheu, começo diferente ou arquivo trocado => releitura completa. Devolve sempre uma cópia do array.
+export function leitorHistorico(home) {
+  const arq = join(home, 'historico.jsonl');
+  let c = null; // { tam, mtime, ino, prefixo, pos (bytes consumidos, logo após um \n), eventos, cauda }
+  const estatisticas = { completas: 0, incrementais: 0 };
+
+  const lerTrecho = (fd, ini, fim) => {
+    const buf = Buffer.alloc(fim - ini);
+    let lidos = 0;
+    while (lidos < buf.length) {
+      const n = readSync(fd, buf, lidos, buf.length - lidos, ini + lidos);
+      if (n === 0) break;
+      lidos += n;
+    }
+    return buf.subarray(0, lidos);
+  };
+  // consome os bytes novos: até o último \n vai para o cache; o resto vira a cauda provisória
+  const consumir = (buf, eventos) => {
+    const nl = buf.lastIndexOf(0x0a);
+    const completo = nl < 0 ? 0 : nl + 1;
+    parsearLinhas(buf.subarray(0, completo).toString('utf8'), eventos);
+    return { consumidos: completo, cauda: parsearLinhas(buf.subarray(completo).toString('utf8')) };
+  };
+
+  function ler() {
+    let st;
+    try { st = statSync(arq); } catch { c = null; return []; }
+    if (c && st.size === c.tam && st.mtimeMs === c.mtime && st.ino === c.ino) return [...c.eventos, ...c.cauda];
+    let fd;
+    try { fd = openSync(arq, 'r'); } catch { c = null; return []; }
+    try {
+      const tam = fstatSync(fd).size;
+      const prefixo = lerTrecho(fd, 0, Math.min(PREFIXO, tam));
+      const cresceu = c && st.ino === c.ino && tam >= c.pos && tam >= c.tam
+        && prefixo.subarray(0, c.prefixo.length).equals(c.prefixo);
+      if (cresceu) {
+        estatisticas.incrementais++;
+        const { consumidos, cauda } = consumir(lerTrecho(fd, c.pos, tam), c.eventos);
+        c.pos += consumidos; c.cauda = cauda;
+      } else {
+        estatisticas.completas++;
+        const eventos = [];
+        const { consumidos, cauda } = consumir(lerTrecho(fd, 0, tam), eventos);
+        c = { pos: consumidos, eventos, cauda };
+      }
+      Object.assign(c, { tam, mtime: st.mtimeMs, ino: st.ino, prefixo });
+      return [...c.eventos, ...c.cauda];
+    } finally { closeSync(fd); }
+  }
+  ler.estatisticas = estatisticas;
+  return ler;
 }
 
 export function nivelDe(score) {

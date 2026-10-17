@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { nabucoHome, acharProjeto, lerAtiva, dirProjeto } from '../lib/caminhos.mjs';
 import { lerJson } from '../lib/json.mjs';
-import { lerHistorico, calcularMetricas } from '../lib/metricas.mjs';
+import { leitorHistorico, calcularMetricas } from '../lib/metricas.mjs';
 import { carregarModelos } from '../lib/modelos.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
 import { montarEstado, FUNCIONARIOS } from '../lib/painel-estado.mjs';
@@ -134,9 +134,10 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   const nomeProjeto = basename(projeto);
   const arqHistorico = join(home, 'historico.jsonl');
   const lerTarefa = leitorTarefa(projeto);
+  const lerHistorico = leitorHistorico(home); // cache por (mtime, tamanho); lê só o que foi acrescentado
 
   const estadoAtual = () => montarEstado({
-    eventos: lerHistorico(home), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, agora: Date.now(),
+    eventos: lerHistorico(), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, agora: Date.now(),
   });
 
   let portaReal = 0;
@@ -191,7 +192,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     if (partes[1] === 'dossie' && partes.length === 3) {
       const papel = partes[2];
       if (!PAPEL_SET.has(papel)) return texto(res, 404, 'não encontrado');
-      const eventos = lerHistorico(home);
+      const eventos = lerHistorico();
       // versao = eventos usados: o front pede as fontes com ela, e os índices batem com o dossiê exibido
       return jsonRes(res, {
         ...montarDossie({ papel, eventos, home, projeto, modelos: carregarModelos(raiz), nome: nomes[papel] }),
@@ -205,7 +206,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
       const v = url.searchParams.get('v');
       if (v === null || !/^\d{1,15}$/.test(v)) return texto(res, 400, 'versão inválida');
       const versao = Number(v);
-      const eventos = lerHistorico(home);
+      const eventos = lerHistorico();
       if (versao > eventos.length) return texto(res, 409, 'histórico mudou; recarregue');
       // calcula sobre o que o cliente viu: os índices batem com o estado exibido
       const vistos = eventos.slice(0, versao);
