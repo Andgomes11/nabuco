@@ -253,3 +253,39 @@ test('id inexistente → exit 1 em todos os comandos', () => {
     assert.match(r.stderr, /lição "[a-z]+-\d+" não encontrada/);
   }
 });
+
+// ---------- buscar ----------
+const licaoBusca = (o = {}) => ({ papel: 'dev', titulo: 'Checar undefined', gatilho: 'TypeError undefined ao chamar map', expectativa: 'array', faca: 'validar antes', porque: 'dados vazios', evidencia: ['[caso](casos/dev/2026-10-x.md)'], ...o });
+
+test('buscar com home vazia → exit 0 e (nenhuma lição relevante)', () => {
+  const r = run(['buscar', '--papel', 'dev', '--texto', 'TypeError undefined']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\(nenhuma lição relevante\)/);
+  assert.deepEqual(JSON.parse(run(['buscar', '--papel', 'dev', '--texto', 'x y z', '--json']).stdout), []);
+});
+
+test('buscar: lição de projeto e global aparecem, projeto primeiro em empate; mostra bloco e caso', () => {
+  assert.equal(run(['licao-add', '--de', arq('g.json', licaoBusca())]).status, 0);
+  assert.equal(run(['licao-add', '--de', arq('p.json', licaoBusca({ escopo: 'projeto', titulo: 'Outro nome', gatilho: 'TypeError undefined ao chamar map', faca: 'conferir', evidencia: ['[caso2](casos/dev/b.md)'] })), '--forcar']).status, 0);
+  const r = run(['buscar', '--papel', 'dev', '--texto', "TypeError: undefined (reading 'map')"]);
+  assert.equal(r.status, 0, r.stderr);
+  const ordem = [...r.stdout.matchAll(/^## (dev-\d+)/gm)].map(m => m[1]);
+  assert.equal(ordem.length, 2);
+  const j = JSON.parse(run(['buscar', '--papel', 'dev', '--texto', "TypeError undefined map", '--json']).stdout);
+  assert.equal(j.length, 2);
+  assert.equal(j[0].id, ordem[0]);
+  assert.match(r.stdout, /^caso: \[caso2\]\(casos\/dev\/b\.md\)$/m);
+  assert.match(r.stdout, /^- gatilho: /m);
+});
+
+test('buscar valida --papel e --texto → exit 2', () => {
+  assert.equal(run(['buscar', '--texto', 'x']).status, 2);
+  assert.equal(run(['buscar', '--papel', 'chefe', '--texto', 'x']).status, 2);
+  assert.equal(run(['buscar', '--papel', 'dev']).status, 2);
+});
+
+test('buscar por --arquivos', () => {
+  run(['licao-add', '--de', arq('g.json', licaoBusca({ gatilho: 'quebra em user.ts', faca: 'x' }))]);
+  const j = JSON.parse(run(['buscar', '--papel', 'dev', '--texto', 'zzzz', '--arquivos', 'src/a/user.ts,b.ts', '--json']).stdout);
+  assert.equal(j.length, 1);
+});

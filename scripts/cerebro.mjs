@@ -7,7 +7,8 @@ import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } fr
 import { similaridade } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
 import { commitHome } from './lib/git.mjs';
-import { substituirBloco, acrescentarBloco, proximoId, lerLicoes } from './lib/licoes.mjs';
+import { ranquear } from './lib/busca.mjs';
+import { serializarBloco, substituirBloco, acrescentarBloco, proximoId, lerLicoes } from './lib/licoes.mjs';
 import {
   ESCOPOS, hoje, arquivoLicoes, arquivoMorto, lerArquivo, gravarArquivo, blocosDe, ativas,
   acharLicao, blocoComExtras, normalizarEvidencia,
@@ -240,6 +241,20 @@ const comandos = {
       .filter(b => v.todas || !b.regra)
       .map(semBruto);
     console.log(JSON.stringify(lista, null, 2));
+  },
+
+  buscar() {
+    const { values: v } = opcoes({ papel: { type: 'string' }, texto: { type: 'string' }, arquivos: { type: 'string' }, json: { type: 'boolean' } });
+    exigir(v.papel, 'papel'); exigir(v.texto, 'texto');
+    if (!PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    const arquivos = (v.arquivos ?? '').split(',').map(x => x.trim()).filter(Boolean);
+    const r = ranquear([...blocosDe('projeto', v.papel, projeto), ...blocosDe('global', v.papel, projeto)], { texto: v.texto, arquivos, hoje: hoje() });
+    if (v.json) { console.log(JSON.stringify(r.map(x => ({ id: x.bloco.id, score: x.score })))); return; }
+    if (!r.length) { console.log('(nenhuma lição relevante)'); return; }
+    console.log(r.map(({ bloco }) => {
+      const caso = bloco.evidencia[0];
+      return serializarBloco(bloco) + (caso ? `caso: ${caso}\n` : '');
+    }).join('\n'));
   },
 };
 
