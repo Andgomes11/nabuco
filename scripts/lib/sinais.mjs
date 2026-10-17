@@ -75,7 +75,9 @@ export function propostasHigiene(blocos, hoje) {
   }
   for (const b of ativasLista) {
     const papel = String(b.id).replace(/-\d+$/, '');
-    if (b.ultima && dias(b.ultima, hoje) > DIAS_SEM_USO) props.push({ id: b.id, papel, motivo: 'sem_uso', detalhe: `última em ${b.ultima}` });
+    // sem data de último uso (ou ilegível): não há como saber se ainda serve, então entra na revisão
+    if (!b.ultima || Number.isNaN(Date.parse(b.ultima))) props.push({ id: b.id, papel, motivo: 'sem_uso', detalhe: 'sem data de último uso' });
+    else if (dias(b.ultima, hoje) > DIAS_SEM_USO) props.push({ id: b.id, papel, motivo: 'sem_uso', detalhe: `última em ${b.ultima}` });
     if (b.negativos > b.positivos) props.push({ id: b.id, papel, motivo: 'ruim', detalhe: `👍${b.positivos} 👎${b.negativos}` });
     if (b.positivos >= MIN_POSITIVOS_PROMOCAO && b.negativos === 0) props.push({ id: b.id, papel, motivo: 'promover', detalhe: `👍${b.positivos} 👎0, sem regra` });
   }

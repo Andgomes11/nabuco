@@ -73,3 +73,29 @@ test('higiene: excesso conta por escopo', () => {
   const l = [...Array.from({ length: 20 }, (_, i) => b(i + 1)), ...Array.from({ length: 20 }, (_, i) => b(i + 21, { escopo: 'projeto' }))];
   assert.deepEqual(propostasHigiene(l, '2026-10-17'), []);
 });
+
+test('higiene: limites — 30 lições sem excesso, 31 com', () => {
+  const n = k => Array.from({ length: k }, (_, i) => b(i + 1));
+  assert.deepEqual(propostasHigiene(n(30), '2026-10-17'), []);
+  assert.deepEqual(propostasHigiene(n(31), '2026-10-17').map(p => p.motivo), ['excesso']);
+});
+
+test('higiene: limites — última há exatamente 90 dias não é sem_uso; 91 é', () => {
+  assert.deepEqual(propostasHigiene([b(1, { ultima: '2026-07-19' })], '2026-10-17'), []);
+  assert.deepEqual(propostasHigiene([b(1, { ultima: '2026-07-18' })], '2026-10-17').map(p => p.motivo), ['sem_uso']);
+});
+
+test('higiene: limites de promover e ruim', () => {
+  const motivos = o => propostasHigiene([b(1, o)], '2026-10-17').map(p => p.motivo);
+  assert.deepEqual(motivos({ positivos: 4, negativos: 0 }), [], '👍4 👎0 ainda não promove');
+  assert.deepEqual(motivos({ positivos: 5, negativos: 0 }), ['promover']);
+  assert.deepEqual(motivos({ positivos: 5, negativos: 1 }), [], '👍5 👎1 não promove');
+  assert.deepEqual(motivos({ positivos: 2, negativos: 2 }), [], '👍=👎 não é ruim');
+  assert.deepEqual(motivos({ positivos: 2, negativos: 3 }), ['ruim']);
+});
+
+test('higiene: lição sem "última" é proposta como sem_uso', () => {
+  const p = propostasHigiene([b(1, { ultima: null })], '2026-10-17');
+  assert.deepEqual(p.map(x => [x.id, x.motivo]), [['dev-0001', 'sem_uso']]);
+  assert.match(p[0].detalhe, /sem data/);
+});

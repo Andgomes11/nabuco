@@ -329,6 +329,26 @@ test('sinais usa a pasta mais recente e --tarefa inexistente → exit 1', () => 
   assert.equal(run(['sinais', '--tarefa', 'nao-existe']).status, 1);
 });
 
+test('higiene --papel filtra as propostas pelo papel', () => {
+  const ruim = p => `# Lições — ${p}
+
+## ${p}-0001 · Lição ruim
+- gatilho: g
+- expectativa: e
+- faça: f
+- por quê: p
+- evidência: x · escopo: global
+- 👍 1  👎 3 · última: 2999-01-01
+`;
+  mkdirSync(join(home, 'licoes'), { recursive: true });
+  for (const p of ['dev', 'revisor']) writeFileSync(join(home, 'licoes', `${p}.md`), ruim(p));
+  const todas = JSON.parse(run(['higiene']).stdout);
+  assert.deepEqual(todas.map(x => x.id).sort(), ['dev-0001', 'revisor-0001']);
+  const r = run(['higiene', '--papel', 'revisor']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout).map(x => [x.id, x.motivo]), [['revisor-0001', 'ruim']]);
+});
+
 test('higiene com home vazia → []', () => {
   const r = run(['higiene']);
   assert.equal(r.status, 0, r.stderr);
