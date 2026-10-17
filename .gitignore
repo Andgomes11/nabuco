@@ -2,3 +2,4 @@
 .remember/
 node_modules/
 .nabuco/
+.claude/worktrees/
