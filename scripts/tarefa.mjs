@@ -7,6 +7,7 @@ import { acharProjeto, dirProjeto, dirTarefas, lerAtiva, escreverAtiva, limparAt
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { registrar } from './lib/eventos.mjs';
+import { slugify } from './lib/texto.mjs';
 import { TAMANHOS, TIPOS, FASES } from './lib/constantes.mjs';
 
 class ErroUso extends Error {}
@@ -25,10 +26,6 @@ function exigirAtiva() {
   const a = lerAtiva(projeto);
   if (!a) throw new ErroRegra('nenhuma tarefa ativa neste projeto (rode "nova")');
   return a;
-}
-function slugify(s) {
-  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50).replace(/-+$/, '');
 }
 const hoje = () => new Date().toLocaleDateString('sv-SE'); // AAAA-MM-DD local
 const agora = () => new Date().toISOString();
