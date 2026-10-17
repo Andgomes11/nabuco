@@ -14,7 +14,7 @@ try { modelo = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`); } ca
   throw erro;
 }
 const {
-  velocidadeChuva, corDoEstado, rotuloEstado, rotuloNivel, formatarAtributo, formatarIndicador,
+  aparenciaMonitor, rotuloNivel, formatarAtributo, formatarIndicador,
   seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, INDICADORES, ATRIBUTOS,
 } = modelo;
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
@@ -28,6 +28,8 @@ const el = (tag, classe, texto) => {
 };
 
 let estado = null; // último Estado recebido
+// false depois do aviso "servidor encerrado?": os monitores congelam até chegar um Estado novo
+let conectado = true;
 const monitores = new Map(); // papel → { botao, tela, retrato, nome, nivel, situacao, f }
 
 // ---------- chuva ----------
@@ -68,10 +70,8 @@ class Tela {
     this.temQuadro = false;
     this.redesenhar();
   }
-  // estado novo vindo do servidor
-  definir(f) {
-    const vel = velocidadeChuva(f);
-    const cor = corDoEstado(f.estado);
+  // aparência nova (aparenciaMonitor): cor e velocidade
+  definir({ cor, vel }) {
     const mudou = vel !== this.vel || cor !== this.cor;
     const congelar = cor === 'vermelho' && this.cor === 'verde' && this.temQuadro;
     const mesmaCor = cor === this.cor;
@@ -92,7 +92,7 @@ class Tela {
     if (!this.w) return;
     this.limpar();
     this.temQuadro = false;
-    if (this.cor === 'apagado') return; // ocioso: tela apagada
+    if (this.cor !== 'verde' && this.cor !== 'vermelho') return; // ocioso ou desconectado: tela apagada
     if (this.cor === 'verde' && this.emMovimento()) return; // a animação desenha
     const cor = this.cor === 'vermelho' ? cores.espera : cores.chuva;
     // rastro proporcional à velocidade: o quadro parado ainda conta quanto trabalho havia
@@ -251,15 +251,15 @@ function criarMonitor(f) {
 
 function atualizarMonitor(m, f) {
   m.f = f;
-  m.botao.dataset.cor = corDoEstado(f.estado);
+  const ap = aparenciaMonitor(f, conectado);
+  m.botao.dataset.cor = ap.cor;
   m.botao.dataset.papel = f.papel;
-  m.botao.setAttribute('aria-label', `${f.nome}, ${rotuloNivel(f)}, ${rotuloEstado(f.estado)}${f.estado === 'trabalhando' ? `, atividade ${formatarAtributo(f.atividade)}` : ''}. Abrir dossiê`);
+  m.botao.setAttribute('aria-label', `${f.nome}, ${rotuloNivel(f)}, ${ap.rotulo.replaceAll(' · ', ', ')}. Abrir dossiê`);
   m.nome.textContent = f.nome;
   m.nivel.textContent = rotuloNivel(f);
-  const atividade = f.estado === 'trabalhando' ? ` · atividade ${formatarAtributo(f.atividade)}` : '';
-  m.situacaoTexto.textContent = rotuloEstado(f.estado) + atividade;
+  m.situacaoTexto.textContent = ap.rotulo;
   pintarRetrato(m.retrato, f);
-  m.tela.definir(f);
+  m.tela.definir(ap);
 }
 
 function renderizarMonitores(funcionarios) {
@@ -329,6 +329,7 @@ function aplicarEstado(e) {
   if (!e || !Array.isArray(e.funcionarios)) return;
   const versaoAnterior = estado?.versao;
   estado = e;
+  conectado = true; // Estado novo do servidor: os monitores voltam a refletir dado vivo
   $('erro-geral').hidden = true;
   renderizarCabecalho(e);
   renderizarMonitores(e.funcionarios);
@@ -342,6 +343,11 @@ function avisarServidorFora() {
   caixa.textContent = SERVIDOR_FORA;
   caixa.hidden = false;
   definirConexao('desconectado', 'sem servidor');
+  // dado velho não anima: congela todos os monitores até um Estado novo chegar
+  if (conectado) {
+    conectado = false;
+    for (const m of monitores.values()) atualizarMonitor(m, m.f);
+  }
 }
 
 async function recarregarEstado() {

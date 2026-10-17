@@ -265,6 +265,12 @@ kbd {
 .monitor[data-cor="apagado"] .retrato img { filter: brightness(0.5) saturate(0.6); }
 .monitor[data-cor="apagado"] .retrato.cinza img { filter: grayscale(1) brightness(0.5); }
 .monitor[data-cor="vermelho"] .retrato { border-color: var(--vermelho); }
+/* servidor encerrado: tudo apagado e parado, com borda tracejada (não é "ocioso", é "não sei") */
+.monitor[data-cor="desconectado"] { border-style: dashed; }
+.monitor[data-cor="desconectado"] .retrato { border-color: var(--borda); color: var(--apagado); }
+.monitor[data-cor="desconectado"] .retrato img { filter: grayscale(1) brightness(0.4); }
+.monitor[data-cor="desconectado"] .placa-nome,
+.monitor[data-cor="desconectado"] .placa-nivel { color: var(--texto-suave); }
 
 .placa {
   display: grid;

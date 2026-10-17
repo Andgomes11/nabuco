@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   velocidadeChuva, corDoEstado, rotuloNivel, formatarAtributo, seta, urlAvatar,
-  rotuloEstado, urlFontes, urlFontesLicao, formatarIndicador, ATRIBUTOS, INDICADORES,
+  rotuloEstado, urlFontes, urlFontesLicao, aparenciaMonitor, formatarIndicador, ATRIBUTOS, INDICADORES,
 } from '../scripts/painel/publico/modelo.mjs';
 
 test('velocidadeChuva: ocioso e aguardando param; trabalhando = 2 + 18 × atividade', () => {
@@ -119,4 +119,14 @@ test('resumoGate: sem critérios => neutro "nenhum critério definido", nunca "t
 test('urlFontesLicao: eventos licao_usada de uma lição, com versão e chave', () => {
   assert.equal(urlFontesLicao('dev', 'dev-0001', 7, 'k1'), '/api/fontes/dev/licao/dev-0001?v=7&k=k1');
   assert.equal(urlFontesLicao('dev', 'a/b', 7, 'k&1'), '/api/fontes/dev/licao/a%2Fb?v=7&k=k%261');
+});
+
+test('aparenciaMonitor: conectado segue o estado; servidor encerrado congela tudo (sem chuva, tela "desconectado")', () => {
+  const trab = { estado: 'trabalhando', atividade: 0.5 };
+  assert.deepEqual(aparenciaMonitor(trab, true), { cor: 'verde', vel: 11, rotulo: 'trabalhando · atividade 50%' });
+  assert.deepEqual(aparenciaMonitor({ estado: 'aguardando' }, true), { cor: 'vermelho', vel: 0, rotulo: 'aguardando você' });
+  assert.deepEqual(aparenciaMonitor({ estado: 'ocioso' }, true), { cor: 'apagado', vel: 0, rotulo: 'ocioso' });
+  for (const f of [trab, { estado: 'aguardando' }, { estado: 'ocioso' }, null]) {
+    assert.deepEqual(aparenciaMonitor(f, false), { cor: 'desconectado', vel: 0, rotulo: 'sem conexão' });
+  }
 });

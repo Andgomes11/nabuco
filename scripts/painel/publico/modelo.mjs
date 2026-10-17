@@ -21,6 +21,15 @@ export function rotuloEstado(estado) {
   return 'ocioso';
 }
 
+// o que o monitor mostra. Sem conexão com o servidor (encerrado), o estado é velho: nada anima nem
+// afirma "trabalhando" — a tela fica "desconectado" até a conexão voltar
+export function aparenciaMonitor(f, conectado) {
+  if (!conectado) return { cor: 'desconectado', vel: 0, rotulo: 'sem conexão' };
+  const estado = f?.estado;
+  const atividade = estado === 'trabalhando' ? ` · atividade ${formatarAtributo(f.atividade)}` : '';
+  return { cor: corDoEstado(estado), vel: velocidadeChuva(f), rotulo: rotuloEstado(estado) + atividade };
+}
+
 export function rotuloNivel(f) {
   if (!f || typeof f.nivel !== 'string' || !f.nivel) return 'sem avaliação';
   return f.provisorio ? `${f.nivel} · provisório` : f.nivel;
