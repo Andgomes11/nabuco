@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
-import { iniciar } from '../scripts/painel/servidor.mjs';
+import { iniciar, hostValido } from '../scripts/painel/servidor.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 let base, proj, home, srv, homeAntes;
@@ -306,4 +306,29 @@ test('SSE: troca de tarefa — ativa criada aparece; ativa removida (tarefa conc
   writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 'nova', fase: 'concluida' }));
   unlinkSync(join(proj, '.nabuco', 'ativa'));
   await sse.esperar(e => sse.estados.indexOf(e) >= n && e.tarefa === null, 3000);
+});
+
+test('hostValido: porta 80 aceita Host sem porta; outras portas exigem a porta', () => {
+  for (const h of ['127.0.0.1', 'localhost', '127.0.0.1:80', 'localhost:80']) assert.equal(hostValido(h, 80), true, h);
+  for (const h of ['127.0.0.1', 'localhost', '127.0.0.1:80', 'evil.com:8080', undefined]) assert.equal(hostValido(h, 8080), false, String(h));
+  assert.equal(hostValido('127.0.0.1:8080', 8080), true);
+  assert.equal(hostValido('localhost:8080', 8080), true);
+  assert.equal(hostValido('evil.com', 80), false);
+});
+
+test('--porta 80 de verdade: Host "127.0.0.1" e "localhost" sem porta são aceitos', async t => {
+  let s80;
+  try { s80 = await iniciar({ porta: 80, raiz: RAIZ, projeto: proj, home }); } catch (e) {
+    return t.skip(`porta 80 indisponível aqui (${e.code ?? e.message})`);
+  }
+  try {
+    const pedir80 = host => new Promise((ok, falha) => {
+      const r = http.request({ host: '127.0.0.1', port: 80, path: `/api/estado?k=${s80.chave}`, agent: false, headers: { host } }, res => { res.resume(); ok(res.statusCode); });
+      r.on('error', falha); r.end();
+    });
+    assert.equal(await pedir80('127.0.0.1'), 200);
+    assert.equal(await pedir80('localhost'), 200);
+    assert.equal(await pedir80('127.0.0.1:80'), 200);
+    assert.equal(await pedir80('evil.com'), 403);
+  } finally { await s80.fechar(); }
 });

@@ -91,6 +91,15 @@ function ativaDir(projeto) {
   try { return lerAtiva(projeto)?.dir ?? null; } catch { return null; }
 }
 
+// Host aceito (contra DNS rebinding): 127.0.0.1/localhost com a porta real; na porta 80 o navegador manda
+// o Host sem porta, então os dois formatos valem
+export function hostValido(host, porta) {
+  if (typeof host !== 'string') return false;
+  const ok = new Set([`127.0.0.1:${porta}`, `localhost:${porta}`]);
+  if (porta === 80) { ok.add('127.0.0.1'); ok.add('localhost'); }
+  return ok.has(host);
+}
+
 const marca = arq => { try { const s = statSync(arq); return `${s.size}:${s.mtimeMs}`; } catch { return '-'; } };
 
 export function abrirNavegador(url) {
@@ -136,8 +145,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   const jsonRes = (res, dados) => responder(res, 200, 'application/json; charset=utf-8', JSON.stringify(dados));
 
   function rota(req, res) {
-    const hostOk = req.headers.host === `127.0.0.1:${portaReal}` || req.headers.host === `localhost:${portaReal}`;
-    if (!hostOk) return texto(res, 403, 'proibido');
+    if (!hostValido(req.headers.host, portaReal)) return texto(res, 403, 'proibido');
     if (typeof req.url !== 'string' || !req.url.startsWith('/')) return texto(res, 403, 'proibido');
     let url;
     try { url = new URL(`http://127.0.0.1${req.url}`); } catch { return texto(res, 403, 'proibido'); }
