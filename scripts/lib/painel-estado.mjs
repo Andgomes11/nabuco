@@ -15,9 +15,12 @@ const lista = x => (Array.isArray(x) ? x.filter(e => e && typeof e === 'object')
 const tempo = e => { const t = Date.parse(e?.ts); return Number.isNaN(t) ? -Infinity : t; };
 const agentId = e => (e.dados && typeof e.dados === 'object' ? e.dados.agent_id : undefined);
 
+// só o início mais recente do papel conta (um escritor por vez): início antigo sem fim é sessão morta
 function agenteAberto(meus) {
-  const fechados = new Set(meus.filter(e => e.tipo === 'agente_fim').map(agentId));
-  return meus.some(e => e.tipo === 'agente_inicio' && !fechados.has(agentId(e)));
+  let ult = null;
+  for (const e of meus) if (e.tipo === 'agente_inicio' && (ult === null || tempo(e) >= tempo(ult))) ult = e;
+  if (ult === null) return false;
+  return !meus.some(e => e.tipo === 'agente_fim' && agentId(e) === agentId(ult));
 }
 
 export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora }) {
@@ -71,5 +74,6 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
       },
     };
   }
+  // versao usa eventos.length cru de propósito: são índices no arquivo de histórico
   return { versao: Array.isArray(eventos) ? eventos.length : 0, projeto, tarefa: t, funcionarios };
 }

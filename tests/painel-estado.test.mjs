@@ -101,3 +101,12 @@ test('nível e avatar', () => {
   assert.equal(func(est, 'tester').nome, 'tester');
   assert.equal(func(est, 'tester').nivelNum, null);
 });
+
+test('início antigo morto não mantém o papel trabalhando', () => {
+  const morto = ev('agente_inicio', 'dev', 2880, { agent_id: 'a0' });
+  const a1 = ev('agente_inicio', 'dev', 5, { agent_id: 'a1' });
+  const a1fim = ev('agente_fim', 'dev', 4, { agent_id: 'a1' });
+  assert.equal(func(montarEstado({ ...base, eventos: [morto, a1, a1fim] }), 'dev').estado, 'ocioso');
+  const a2 = ev('agente_inicio', 'dev', 2, { agent_id: 'a2' });
+  assert.equal(func(montarEstado({ ...base, eventos: [morto, a1, a1fim, a2] }), 'dev').estado, 'trabalhando');
+});
