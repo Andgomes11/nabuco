@@ -7,7 +7,7 @@ import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
 import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } from './lib/constantes.mjs';
-import { similaridade, tokenizar } from './lib/texto.mjs';
+import { similaridade, normalizarTag } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
 import { calcularMetricas, lerHistorico } from './lib/metricas.mjs';
 import { commitHome } from './lib/git.mjs';
@@ -36,7 +36,7 @@ function lerEntrada(arq) {
   catch (e) { throw new ErroUso(`não foi possível ler --de "${arq}": ${e.message}`); }
 }
 const textoSimilar = c => `${c.sintoma ?? ''} ${c.causa_raiz ?? ''}`;
-const conjTags = c => new Set((c.tags ?? []).map(t => tokenizar(t).join('-')).filter(Boolean));
+const conjTags = c => new Set((c.tags ?? []).map(normalizarTag).filter(Boolean));
 function jaccardConj(A, B) {
   if (A.size === 0 || B.size === 0) return 0;
   let inter = 0;

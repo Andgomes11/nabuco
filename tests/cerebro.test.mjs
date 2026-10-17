@@ -103,6 +103,13 @@ test('similares: tags disjuntas e texto sem relação → não similar', () => {
   assert.deepEqual(s, { similares: [], destilar: false });
 });
 
+test('similares: tags curtas (ui, db, ci) contam na comparação de tags', () => {
+  run(['caso-add', '--de', arq('a.json', caso({ sintoma: 'botao sumiu na tela', causa_raiz: 'z-index', tags: ['ui', 'DB', 'c.i'] }))]);
+  const s = JSON.parse(run(['similares', '--de', arq('b.json', caso({ sintoma: 'modal invisivel apos abrir', causa_raiz: 'overflow escondido', tags: ['UI', 'db', 'c-i'] }))]).stdout);
+  assert.equal(s.similares.length, 1);
+  assert.equal(s.similares[0].score, 1);
+});
+
 test('comando desconhecido → exit 2', () => {
   assert.equal(run(['xyz']).status, 2);
 });

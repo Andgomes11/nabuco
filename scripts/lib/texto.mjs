@@ -6,6 +6,12 @@ export function tokenizar(s) {
   return base.split(/[^a-z0-9]+/).filter(t => t.length >= 3 && !STOPWORDS.has(t));
 }
 
+// tag: minúsculas, sem acento, separadores → '-'. Sem o corte de 3 letras de tokenizar: 'ui', 'db' e 'ci' contam.
+export function normalizarTag(s) {
+  return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 export function similaridade(a, b) {
   const A = new Set(tokenizar(a)), B = new Set(tokenizar(b));
   if (A.size === 0 || B.size === 0) return 0;

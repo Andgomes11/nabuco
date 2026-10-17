@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenizar, similaridade, ehTransitorio } from '../scripts/lib/texto.mjs';
+import { tokenizar, similaridade, ehTransitorio, normalizarTag } from '../scripts/lib/texto.mjs';
 
 test('tokenizar ignora acentos, caixa e pontuação', () => {
   const a = tokenizar('Não foi possível: TypeError em user.ts');
@@ -20,4 +20,12 @@ test('ehTransitorio', () => {
   assert.equal(ehTransitorio("'node' não é reconhecido como um comando"), true);
   assert.equal(ehTransitorio('AssertionError: expected 3'), false);
   assert.equal(ehTransitorio(undefined), false);
+});
+
+test('normalizarTag: minúsculas, sem acento, separadores viram "-", sem corte de tamanho', () => {
+  assert.equal(normalizarTag('UI'), 'ui');
+  assert.equal(normalizarTag('db'), 'db');
+  assert.equal(normalizarTag('Estatística'), 'estatistica');
+  assert.equal(normalizarTag(' off_by one '), 'off-by-one');
+  assert.equal(normalizarTag('--'), '');
 });
