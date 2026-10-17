@@ -396,3 +396,14 @@ test('sinais --tarefa só aceita nome de pasta: caminho → exit 2 (achado final
     assert.equal(r.stdout, '', ruim);
   }
 });
+
+test('similares com tags que não são lista de textos → exit 2 (achado final #8)', () => {
+  run(['caso-add', '--de', arq('c.json', caso())]);
+  for (const tags of ['cache', 42, { a: 1 }, ['ok', 3], [null]]) {
+    const r = run(['similares', '--de', arq('t.json', caso({ tags }))]);
+    assert.equal(r.status, 2, JSON.stringify(tags));
+    assert.match(r.stderr, /tags/);
+  }
+  const semTags = caso(); delete semTags.tags;
+  assert.equal(run(['similares', '--de', arq('s.json', semTags)]).status, 0);
+});

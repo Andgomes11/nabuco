@@ -148,6 +148,7 @@ const comandos = {
     const { values: v } = opcoes({ de: { type: 'string' } });
     const c = lerEntrada(v.de);
     if (!c || !PAPEIS_CEREBRO.includes(c.papel) || typeof c.sintoma !== 'string') throw new ErroUso('--de precisa de papel válido e sintoma');
+    if (c.tags != null && (!Array.isArray(c.tags) || c.tags.some(t => typeof t !== 'string'))) throw new ErroUso('--de: tags deve ser uma lista de textos');
     const alvo = textoSimilar(c);
     const similares = lerCasos(nabucoHome(), c.papel)
       .map(x => ({ arquivo: x.arquivo, score: Number(similaridade(alvo, textoSimilar(x)).toFixed(3)) }))
