@@ -2,9 +2,55 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>nabuco · painel</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="estilo.css?k=__CHAVE__">
+<script type="module" src="app.js?k=__CHAVE__"></script>
 </head>
 <body>
-<p>Painel do nabuco — em construção.</p>
+<header class="topo">
+  <p class="marca"><span class="marca-nome">nabuco</span><span class="marca-sep" aria-hidden="true">//</span><span id="projeto" class="marca-projeto">—</span></p>
+  <div class="topo-tarefa">
+    <p class="rotulo">tarefa</p>
+    <p id="tarefa" class="valor">carregando…</p>
+  </div>
+  <details id="gate" class="gate" hidden>
+    <summary><span class="rotulo">gate</span> <span id="gate-placar" class="valor">—</span></summary>
+    <ul id="gate-pendencias" class="gate-pendencias"></ul>
+  </details>
+  <p id="conexao" class="conexao" data-estado="conectando"><span class="led" aria-hidden="true"></span><span id="conexao-texto" role="status">conectando…</span><span id="conexao-eventos"></span></p>
+</header>
+
+<main class="principal">
+  <h1 class="so-leitor">Monitores do time</h1>
+  <ul id="grade" class="grade" aria-busy="true"></ul>
+  <p id="erro-geral" class="erro-geral" role="alert" hidden></p>
+</main>
+
+<footer class="legenda">
+  <p>chuva em movimento = trabalhando, na velocidade dos eventos dos últimos 5 min · vermelha e parada = esperando você · tela apagada = ocioso · abra um monitor para ver o dossiê</p>
+</footer>
+
+<dialog id="dossie" class="dossie" aria-labelledby="d-nome">
+  <div class="d-moldura">
+    <div class="d-cab">
+      <div id="d-retrato" class="d-retrato"></div>
+      <div class="d-ident">
+        <p id="d-papel" class="rotulo"></p>
+        <h2 id="d-nome" class="d-nome"></h2>
+        <p class="d-clearance"><span class="rotulo">clearance</span> <span id="d-nivel" class="valor"></span></p>
+        <p class="d-clearance"><span class="rotulo">amostra</span> <span id="d-amostra" class="valor">—</span></p>
+      </div>
+      <button id="d-fechar" class="botao d-fechar" type="button">fechar <kbd>esc</kbd></button>
+    </div>
+    <p id="d-aviso" class="d-aviso" hidden>
+      <span>o histórico mudou desde que este dossiê abriu.</span>
+      <button id="d-atualizar" class="botao" type="button">atualizar</button>
+    </p>
+    <div id="d-corpo" class="d-corpo"></div>
+  </div>
+</dialog>
 </body>
 </html>

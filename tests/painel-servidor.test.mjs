@@ -248,3 +248,11 @@ test('requisição HTTP malformada → 400 com cabeçalhos de segurança', async
   assert.match(resposta, /x-content-type-options: nosniff/i);
   assert.match(resposta, /content-security-policy: default-src 'self'/i);
 });
+
+test('index.html sai com a chave nos recursos estáticos (toda requisição exige a chave)', async () => {
+  const html = (await pedir('/')).corpo.toString('utf8');
+  assert.ok(!html.includes('__CHAVE__'));
+  assert.ok(html.includes(`estilo.css?k=${srv.chave}`));
+  assert.ok(html.includes(`app.js?k=${srv.chave}`));
+  for (const rec of ['/estilo.css', '/app.js', '/modelo.mjs']) assert.equal((await pedir(rec)).status, 200, rec);
+});
