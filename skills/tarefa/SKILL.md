@@ -41,8 +41,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 - Claude Code: subagente `nabuco:<papel>`. Codex: agente `nabuco-<papel>`.
 - Antes de delegar: `C buscar --papel <escritor> --texto="<sintoma ou pedido>" --arquivos="<arquivos envolvidos>"` (arquivos separados por vírgula).
 - Mensagem ao escritor: caminho da pasta da tarefa, "leia plano.md, criterios.json e progresso.md", o passo exato a fazer agora, o caminho do nabuco (`$NABUCO`) e a saída da busca sob o título "Lições do time" (se vier `(nenhuma lição relevante)`, omita a seção).
-- Depois da entrega, para cada lição em "lições usadas": `C voto --id <id> --util sim` (👍) ou `--util nao` (👎).
-- Ao receber a entrega: atualize `progresso.md` (Estado atual, Próximo passo, Decisões com autor) e `T log --texto="<resumo>"`.
+- Ao receber a entrega: atualize `progresso.md` (Estado atual, Próximo passo, Decisões com autor), `T log --texto="<resumo>"` e, para cada lição em "lições usadas", `C voto --id <id> --util sim` (👍) ou `--util nao` (👎).
 - **Você mesmo** roda o comando de verificação de cada critério e registra:
   `T criterio --id c1 --status passou --evidencia="<saída resumida>"` (ou `--status falhou`).
   Nunca marque `passou` sem ter rodado o comando nesta tarefa.
