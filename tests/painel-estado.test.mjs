@@ -138,3 +138,22 @@ test('estado e atividade só contam eventos DESTE projeto; nível continua globa
   }
   assert.equal(func(montarEstado({ ...base, eventos: glob }), 'dev').nivel, 'Especialista');
 });
+
+test('agente sem agent_id: só um fim sem agent_id POSTERIOR fecha o início (undefined não casa com qualquer coisa)', () => {
+  const est = evs => func(montarEstado({ ...base, eventos: evs }), 'dev').estado;
+  const ini = ev('agente_inicio', 'dev', 2);
+  assert.equal(est([ini]), 'trabalhando');
+  // fim sem agent_id de uma sessão anterior não encerra o início novo
+  assert.equal(est([ev('agente_fim', 'dev', 10), ini]), 'trabalhando');
+  assert.equal(est([ini, ev('agente_fim', 'dev', 10)]), 'trabalhando', 'a ordem no arquivo não importa, vale o ts');
+  // fim sem agent_id depois do início encerra
+  assert.equal(est([ini, ev('agente_fim', 'dev', 1)]), 'ocioso');
+  // mesmo instante: vale a ordem no histórico
+  const fimMesmo = { ...ev('agente_fim', 'dev', 2) };
+  assert.equal(est([ini, fimMesmo]), 'ocioso');
+  // com e sem agent_id não se misturam
+  assert.equal(est([ini, ev('agente_fim', 'dev', 1, { agent_id: 'a1' })]), 'trabalhando');
+  assert.equal(est([ev('agente_inicio', 'dev', 2, { agent_id: 'a1' }), ev('agente_fim', 'dev', 1)]), 'trabalhando');
+  // agent_id nulo conta como ausente
+  assert.equal(est([ev('agente_inicio', 'dev', 2, { agent_id: null }), ev('agente_fim', 'dev', 10)]), 'trabalhando');
+});

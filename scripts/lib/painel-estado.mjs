@@ -13,14 +13,27 @@ const FASES_ESPERA = new Set(['aguardando_usuario', 'aguardando_aprovacao']);
 
 const lista = x => (Array.isArray(x) ? x.filter(e => e && typeof e === 'object') : []);
 const tempo = e => { const t = Date.parse(e?.ts); return Number.isNaN(t) ? -Infinity : t; };
-const agentId = e => (e.dados && typeof e.dados === 'object' ? e.dados.agent_id : undefined);
+// agent_id ausente/nulo/vazio = null (nunca undefined, para não casar 'sem id' com 'sem id' por acaso)
+const agentId = e => {
+  const id = e.dados && typeof e.dados === 'object' ? e.dados.agent_id : null;
+  if (typeof id === 'number' && Number.isFinite(id)) return String(id);
+  return typeof id === 'string' && id ? id : null;
+};
 
-// só o início mais recente do papel conta (um escritor por vez): início antigo sem fim é sessão morta
+// só o início mais recente do papel conta (um escritor por vez): início antigo sem fim é sessão morta.
+// Com agent_id, fecha-o o fim com o mesmo agent_id. Sem agent_id não há como parear: fecha-o apenas um fim
+// também sem agent_id POSTERIOR a ele (ts maior, ou mesmo ts e depois no histórico) — um fim sem id de uma
+// sessão anterior não encerra um início novo.
 function agenteAberto(meus) {
-  let ult = null;
-  for (const e of meus) if (e.tipo === 'agente_inicio' && (ult === null || tempo(e) >= tempo(ult))) ult = e;
+  let ult = null, iUlt = -1;
+  meus.forEach((e, i) => { if (e.tipo === 'agente_inicio' && (ult === null || tempo(e) >= tempo(ult))) { ult = e; iUlt = i; } });
   if (ult === null) return false;
-  return !meus.some(e => e.tipo === 'agente_fim' && agentId(e) === agentId(ult));
+  const id = agentId(ult);
+  return !meus.some((e, i) => {
+    if (e.tipo !== 'agente_fim' || agentId(e) !== id) return false;
+    if (id !== null) return true;
+    return tempo(e) > tempo(ult) || (tempo(e) === tempo(ult) && i > iUlt);
+  });
 }
 
 export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora }) {
