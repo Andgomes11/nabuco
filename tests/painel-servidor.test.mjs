@@ -332,3 +332,34 @@ test('--porta 80 de verdade: Host "127.0.0.1" e "localhost" sem porta são aceit
     assert.equal(await pedir80('evil.com'), 403);
   } finally { await s80.fechar(); }
 });
+
+test('/api/estado: criterios.json corrompido de vez → mostra a última leitura boa COM aviso; consertado → sem aviso', async () => {
+  const dir = join(proj, '.nabuco', 'tarefas', 't');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(proj, '.nabuco', 'ativa'), 't\n');
+  writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 't', fase: 'executando' }));
+  const crit = { criterios: [{ id: 'c1', status: 'passou', evidencia: 'ok' }] };
+  writeFileSync(join(dir, 'criterios.json'), JSON.stringify(crit));
+  let e = json(await pedir('/api/estado'));
+  assert.equal(e.tarefa.aviso, null);
+  writeFileSync(join(dir, 'criterios.json'), '{corrompido');
+  for (let i = 0; i < 2; i++) { // de forma permanente: toda leitura mantém o aviso
+    e = json(await pedir('/api/estado'));
+    assert.equal(e.tarefa.aviso, 'criterios.json ilegível — mostrando a última leitura boa');
+    assert.deepEqual(e.tarefa.gate, { passou: 1, total: 1, pendencias: [] }, 'gate da última leitura boa');
+  }
+  writeFileSync(join(dir, 'criterios.json'), JSON.stringify(crit));
+  assert.equal(json(await pedir('/api/estado')).tarefa.aviso, null);
+});
+
+test('/api/estado: criterios.json ilegível sem leitura boa anterior → tarefa aparece com aviso e gate vazio', async () => {
+  const dir = join(proj, '.nabuco', 'tarefas', 't');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(proj, '.nabuco', 'ativa'), 't\n');
+  writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 't', fase: 'executando' }));
+  writeFileSync(join(dir, 'criterios.json'), '{corrompido');
+  const e = json(await pedir('/api/estado'));
+  assert.equal(e.tarefa?.nome, 't');
+  assert.equal(e.tarefa.aviso, 'criterios.json ilegível');
+  assert.deepEqual(e.tarefa.gate, { passou: 0, total: 0, pendencias: [] });
+});

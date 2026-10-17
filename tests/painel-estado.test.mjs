@@ -72,6 +72,7 @@ test('tarefa e gate', () => {
   assert.deepEqual(est.tarefa, {
     nome: 'Minha tarefa', slug: 'minha', fase: 'executando', tamanho: 'media', tipo: 'feature',
     gate: { passou: 1, total: 3, pendencias: [{ id: 'c2', motivo: 'status "pendente"' }, { id: 'c3', motivo: 'passou sem evidência registrada' }] },
+    aviso: null,
   });
   const vazio = montarEstado({ ...base, eventos: [], tarefa: tar('executando') });
   assert.deepEqual(vazio.tarefa.gate, { passou: 0, total: 0, pendencias: [] });
@@ -156,4 +157,11 @@ test('agente sem agent_id: só um fim sem agent_id POSTERIOR fecha o início (un
   assert.equal(est([ev('agente_inicio', 'dev', 2, { agent_id: 'a1' }), ev('agente_fim', 'dev', 1)]), 'trabalhando');
   // agent_id nulo conta como ausente
   assert.equal(est([ev('agente_inicio', 'dev', 2, { agent_id: null }), ev('agente_fim', 'dev', 10)]), 'trabalhando');
+});
+
+test('tarefa.aviso: repassado do leitor (ex.: criterios.json ilegível); sem aviso = null', () => {
+  assert.equal(montarEstado({ ...base, eventos: [], tarefa: tar('executando') }).tarefa.aviso, null);
+  const aviso = 'criterios.json ilegível — mostrando a última leitura boa';
+  assert.equal(montarEstado({ ...base, eventos: [], tarefa: { ...tar('executando'), aviso } }).tarefa.aviso, aviso);
+  assert.equal(montarEstado({ ...base, eventos: [], tarefa: { ...tar('executando'), aviso: 42 } }).tarefa.aviso, null);
 });

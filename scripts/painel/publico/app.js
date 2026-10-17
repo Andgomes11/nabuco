@@ -286,6 +286,10 @@ function renderizarCabecalho(e) {
   $('projeto').textContent = e.projeto || '—';
   const tarefa = $('tarefa');
   const gate = $('gate');
+  const aviso = $('tarefa-aviso');
+  const textoAviso = typeof e.tarefa?.aviso === 'string' ? e.tarefa.aviso : '';
+  if (aviso.textContent !== textoAviso) aviso.textContent = textoAviso;
+  aviso.hidden = !textoAviso;
   if (!e.tarefa) {
     tarefa.textContent = 'nenhuma tarefa ativa';
     tarefa.classList.add('vazio');

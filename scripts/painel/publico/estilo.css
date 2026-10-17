@@ -172,6 +172,13 @@ kbd {
 .gate-pendencias .ok { color: var(--verde-texto); }
 .gate-pendencias .vazio, .gate-pendencias .pendente { color: var(--texto-suave); }
 
+.tarefa-aviso {
+  margin-top: var(--e1);
+  font-size: var(--t-xs);
+  color: var(--vermelho);
+}
+.tarefa-aviso::before { content: "⚠ "; }
+
 .conexao {
   display: flex;
   align-items: center;

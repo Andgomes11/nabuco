@@ -66,24 +66,36 @@ function lerEventosJsonl(arq) {
   return evs;
 }
 
-// tarefa ativa para o montarEstado. Falha de leitura (arquivo sendo regravado) mantém a última leitura boa
-// da MESMA tarefa; sem leitura boa dela = sem tarefa.
+export const AVISO_CRITERIOS = 'criterios.json ilegível — mostrando a última leitura boa';
+const AVISO_CRITERIOS_SEM_BOA = 'criterios.json ilegível';
+
+// tarefa ativa para o montarEstado. Falha de leitura de estado.json/eventos.jsonl (arquivo sendo regravado)
+// mantém a última leitura boa da MESMA tarefa; sem leitura boa dela = sem tarefa.
+// criterios.json ilegível não esconde a tarefa: usa os últimos critérios bons dela e expõe `aviso`
+// (o cabeçalho mostra), para uma corrupção permanente não passar despercebida.
 function leitorTarefa(projeto) {
   let boa = null;
   return () => {
     let ativa;
     try { ativa = lerAtiva(projeto); } catch { return null; }
     if (!ativa) { boa = null; return null; }
+    const mesma = boa?.nome === ativa.nome;
+    let estado, eventos;
     try {
-      boa = {
-        nome: ativa.nome,
-        estado: lerJson(join(ativa.dir, 'estado.json')),
-        // sem criterios.json ainda (tarefa no começo): gate "nenhum critério definido"
-        criterios: existsSync(join(ativa.dir, 'criterios.json')) ? lerJson(join(ativa.dir, 'criterios.json')) : null,
-        eventos: lerEventosJsonl(join(ativa.dir, 'eventos.jsonl')),
-      };
-      return boa;
-    } catch { return boa?.nome === ativa.nome ? boa : null; }
+      estado = lerJson(join(ativa.dir, 'estado.json'));
+      eventos = lerEventosJsonl(join(ativa.dir, 'eventos.jsonl'));
+    } catch { return mesma ? boa : null; }
+    // sem criterios.json ainda (tarefa no começo): gate "nenhum critério definido"
+    let criterios = null, aviso = null;
+    const arqCrit = join(ativa.dir, 'criterios.json');
+    if (existsSync(arqCrit)) {
+      try { criterios = lerJson(arqCrit); } catch {
+        criterios = mesma ? boa.criterios : null;
+        aviso = mesma && boa.criterios ? AVISO_CRITERIOS : AVISO_CRITERIOS_SEM_BOA;
+      }
+    }
+    boa = { nome: ativa.nome, estado, criterios, eventos, aviso };
+    return boa;
   };
 }
 

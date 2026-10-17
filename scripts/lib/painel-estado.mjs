@@ -87,6 +87,8 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
         total: crit.length,
         pendencias: crit.length ? pendencias(tarefa.criterios) : [],
       },
+      // leitura degradada (ex.: criterios.json ilegível): o cabeçalho avisa em vez de esconder
+      aviso: typeof tarefa.aviso === 'string' && tarefa.aviso ? tarefa.aviso : null,
     };
   }
   // versao usa eventos.length cru de propósito: são índices no arquivo de histórico
