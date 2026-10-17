@@ -181,9 +181,9 @@ test('/api/fontes: v maior que o histórico → 409; indicador desconhecido 404;
 });
 
 // lê eventos SSE até `cond` casar
-function abrirSSE() {
+function abrirSSE(alvo = srv) {
   return new Promise((ok, falha) => {
-    const r = http.get({ host: '127.0.0.1', port: srv.porta, path: `/api/eventos?k=${srv.chave}`, agent: false }, res => {
+    const r = http.get({ host: '127.0.0.1', port: alvo.porta, path: `/api/eventos?k=${alvo.chave}`, agent: false }, res => {
       const estados = [];
       const esperas = [];
       let buf = '';
@@ -362,4 +362,17 @@ test('/api/estado: criterios.json ilegível sem leitura boa anterior → tarefa 
   assert.equal(e.tarefa?.nome, 't');
   assert.equal(e.tarefa.aviso, 'criterios.json ilegível');
   assert.deepEqual(e.tarefa.gate, { passou: 0, total: 0, pendencias: [] });
+});
+
+test('SSE só por polling (observar: false, sem fs.watch): a mudança no histórico ainda chega', async () => {
+  const s2 = await iniciar({ porta: 0, raiz: RAIZ, projeto: proj, home, observar: false });
+  try {
+    mkdirSync(home, { recursive: true });
+    const sse = await abrirSSE(s2);
+    await sse.esperar(() => true, 2000);
+    const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'Meu projeto', tarefa: 't', dados: { agent_id: 'a1' } };
+    appendFileSync(join(home, 'historico.jsonl'), JSON.stringify(ev) + '\n');
+    await sse.esperar(e => e.funcionarios.find(f => f.papel === 'dev').estado === 'trabalhando', 3000);
+    assert.equal(s2.observando(), 0, 'nenhum fs.watch aberto');
+  } finally { await s2.fechar(); }
 });

@@ -125,7 +125,8 @@ export function abrirNavegador(url) {
   } catch { /* falha ao abrir: a URL já foi impressa */ }
 }
 
-export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoHome(), abrir = false } = {}) {
+// `observar: false` (interno, para testes) desliga o fs.watch: só a verificação periódica atualiza o SSE
+export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoHome(), abrir = false, observar: usarWatch = true } = {}) {
   projeto = resolve(projeto ?? acharProjeto(process.cwd()));
   const chave = randomBytes(16).toString('hex');
   const chaveBuf = Buffer.from(chave, 'utf8');
@@ -290,7 +291,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   let semMudanca = 0;
   function verificar() {
     const { sig, dir } = assinatura();
-    observar([home, dir].filter(Boolean));
+    if (usarWatch) observar([home, dir].filter(Boolean));
     if (sig !== ultimaAssinatura) { ultimaAssinatura = sig; semMudanca = 0; agendar(); }
     else if (++semMudanca >= RECALCULO) { semMudanca = 0; agendar(); }
   }
@@ -321,7 +322,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
       verificar();
       const url = `http://127.0.0.1:${portaReal}/?k=${chave}`;
       if (abrir) abrirNavegador(url);
-      ok({ url, porta: portaReal, chave, fechar });
+      ok({ url, porta: portaReal, chave, fechar, observando: () => observadores.size });
     });
   });
 }
