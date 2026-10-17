@@ -365,3 +365,16 @@ test('cwd = pasta que contém NABUCO_HOME: projeto não é a pasta global; nenhu
   assert.equal([...morto.matchAll(/^## dev-0001 · /gm)].length, 1);
   assert.deepEqual(JSON.parse(r(['licoes']).stdout), []);
 });
+
+test('commit da home já leva a linha do histórico do próprio comando (achado final #4)', () => {
+  gitHome();
+  const limpa = () => spawnSync('git', ['-C', home, 'status', '--porcelain'], { encoding: 'utf8' }).stdout.trim();
+  assert.equal(addLicao().status, 0); assert.equal(limpa(), '');
+  assert.equal(addLicao(distintas(1)).status, 0);
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0); assert.equal(limpa(), '');
+  const arqProj = join(proj, '.nabuco', 'licoes', 'dev.md');
+  assert.equal(addLicao({ ...distintas(2), escopo: 'projeto' }).status, 0);
+  assert.ok(existsSync(arqProj));
+  assert.equal(run(['licao-editar', '--id', 'dev-0003', '--escopo', 'global']).status, 0); assert.equal(limpa(), '');
+  assert.equal(run(['aposentar', '--id', 'dev-0002', '--motivo=x']).status, 0); assert.equal(limpa(), '');
+});

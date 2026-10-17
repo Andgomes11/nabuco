@@ -68,11 +68,12 @@ function limite(texto, papel) {
     throw new ErroRegra(`${papel} já tem ${LIMITE_LICOES} lições ativas neste escopo; rode a higiene (fundir, aposentar ou promover) antes de criar outra`);
 }
 
-// Grava `novoTexto` no arquivo da lição achada, commita se global e registra o evento.
+// Grava `novoTexto` no arquivo da lição achada, registra o evento e commita se global
+// (registrar antes, para o commit levar a linha do histórico deste comando).
 function salvar(achada, novoTexto, msg, evento) {
   gravarArquivo(achada.arquivo, novoTexto);
-  if (achada.escopo === 'global') commitHome(nabucoHome(), msg);
   registrar({ ...evento, papel: achada.papel, projeto });
+  if (achada.escopo === 'global') commitHome(nabucoHome(), msg);
 }
 
 function idsDoPapel(papel) {
@@ -93,11 +94,11 @@ function moverEscopo(achada, bloco, destino, campos) {
   // grava o destino primeiro: se algo falhar no meio, a lição fica duplicada, nunca perdida
   gravarArquivo(arqDestino, acrescentarBloco(txtDestino, papel, blocoComExtras(achada.bloco, novo)));
   gravarArquivo(achada.arquivo, substituirBloco(achada.texto, achada.bloco.id, null));
-  commitHome(nabucoHome(), `licao: mover ${achada.bloco.id} para ${destino}${id !== achada.bloco.id ? ` como ${id}` : ''}`);
   registrar({
     tipo: 'licao_editada', papel, projeto,
     dados: { id, campos: [...campos, 'escopo'], ...(id !== achada.bloco.id ? { id_anterior: achada.bloco.id } : {}) },
   });
+  commitHome(nabucoHome(), `licao: mover ${achada.bloco.id} para ${destino}${id !== achada.bloco.id ? ` como ${id}` : ''}`);
   return id;
 }
 
@@ -246,8 +247,8 @@ const comandos = {
     // arquivo morto primeiro: se algo falhar no meio, a lição fica duplicada, nunca perdida
     gravarArquivo(morto, acrescentarBloco(lerArquivo(morto), achada.papel, blocoComExtras(achada.bloco, bloco)));
     gravarArquivo(achada.arquivo, substituirBloco(achada.texto, v.id, null));
-    commitHome(nabucoHome(), `licao: aposentar ${v.id}`);
     registrar({ tipo: 'licao_aposentada', papel: achada.papel, projeto, dados: { id: v.id, escopo: achada.escopo, motivo: v.motivo.trim() } });
+    commitHome(nabucoHome(), `licao: aposentar ${v.id}`);
   },
 
   promover() {
