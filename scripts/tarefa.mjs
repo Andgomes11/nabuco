@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { acharProjeto, dirTarefas, lerAtiva, escreverAtiva, limparAtiva } from './lib/caminhos.mjs';
+import { join, resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { acharProjeto, dirProjeto, dirTarefas, lerAtiva, escreverAtiva, limparAtiva, nabucoHome } from './lib/caminhos.mjs';
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { registrar } from './lib/eventos.mjs';
@@ -33,6 +34,8 @@ const hoje = () => new Date().toLocaleDateString('sv-SE'); // AAAA-MM-DD local
 const agora = () => new Date().toISOString();
 const ler = (a, f) => lerJson(join(a.dir, f));
 const gravar = (a, f, d) => escreverJson(join(a.dir, f), d);
+const normalizar = p => process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p);
+const ehPastaGlobal = p => [nabucoHome(), join(homedir(), '.nabuco')].some(g => normalizar(g) === normalizar(p));
 
 function mudarFase(a, fase, motivo) {
   const estado = ler(a, 'estado.json');
@@ -49,8 +52,14 @@ const comandos = {
     if (!slug) throw new ErroUso('slug vazio depois de normalizar; use letras ou números');
     if (!TAMANHOS.includes(v.tamanho)) throw new ErroUso(`--tamanho deve ser: ${TAMANHOS.join(', ')}`);
     if (!TIPOS.includes(v.tipo)) throw new ErroUso(`--tipo deve ser: ${TIPOS.join(', ')}`);
+    if (ehPastaGlobal(dirProjeto(projeto))) throw new ErroRegra('esta pasta é a pasta global do nabuco; rode dentro de um projeto');
     const atual = lerAtiva(projeto);
-    if (atual) throw new ErroRegra(`já existe uma tarefa ativa: ${atual.nome} (conclua ou rode "abandonar")`);
+    if (atual) {
+      let fase;
+      try { fase = ler(atual, 'estado.json').fase; } catch { /* ilegível: trata como ativa */ }
+      if (fase === 'concluida' || fase === 'abandonada') limparAtiva(projeto); // "ativa" velha
+      else throw new ErroRegra(`já existe uma tarefa ativa: ${atual.nome} (conclua ou rode "abandonar")`);
+    }
     let nome = `${hoje()}-${slug}`;
     for (let i = 2; existsSync(join(dirTarefas(projeto), nome)); i++) nome = `${hoje()}-${slug}-${i}`;
     const dir = join(dirTarefas(projeto), nome);
@@ -70,6 +79,7 @@ const comandos = {
     const { values: v } = opcoes({ id: { type: 'string' }, descricao: { type: 'string' }, verificacao: { type: 'string' } });
     const a = exigirAtiva();
     const c = ler(a, 'criterios.json');
+    if (!Array.isArray(c?.criterios)) throw new ErroRegra('criterios.json inválido (sem lista "criterios")');
     const id = exigir(v.id, 'id');
     if (c.criterios.some(x => x.id === id)) throw new ErroRegra(`critério "${id}" já existe`);
     c.criterios.push({ id, descricao: exigir(v.descricao, 'descricao'), verificacao: exigir(v.verificacao, 'verificacao'), status: 'pendente', evidencia: '', em: null });

@@ -23,6 +23,7 @@ Se a fase for `aguardando_usuario` e não houver pergunta sua pendente no `progr
 
 Tipo → escritor: `bug` → debugger · `ui` → designer · `infra` → devops · `docs` → docs · `feature`/`refactor` → dev · `estrutural` → consulte o arquiteto antes de planejar, depois dev.
 Se o usuário forçar um tamanho, obedeça. Rode: `T nova --slug <curto> --tamanho <t> --tipo <tipo>` (imprime a pasta da tarefa).
+Se `T nova` recusar por já existir tarefa ativa, rode `T status`, mostre a tarefa ao usuário e pergunte se retoma ou abandona — nunca rode `abandonar` sem ok explícito do usuário.
 
 ## 2. Entender
 Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `trivial`, seja breve.

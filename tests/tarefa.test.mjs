@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,6 +73,37 @@ test('nova recusa segunda tarefa ativa; abandonar libera', () => {
   assert.match(r.err, /já existe uma tarefa ativa/);
   assert.equal(run('abandonar', '--motivo', 'mudou o plano').code, 0);
   assert.equal(run('nova', '--slug', 'b', '--tamanho', 'trivial', '--tipo', 'bug').code, 0);
+});
+
+test('nova: "ativa" velha apontando para tarefa já concluída/abandonada é limpa', () => {
+  for (const fase of ['concluida', 'abandonada']) {
+    const dir = run('nova', '--slug', `a-${fase}`, '--tamanho', 'trivial', '--tipo', 'bug').out.trim();
+    const est = JSON.parse(readFileSync(join(dir, 'estado.json'), 'utf8'));
+    writeFileSync(join(dir, 'estado.json'), JSON.stringify({ ...est, fase }));
+    const r = run('nova', '--slug', `b-${fase}`, '--tamanho', 'trivial', '--tipo', 'bug');
+    assert.equal(r.code, 0, r.err);
+    assert.match(readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8'), new RegExp(`b-${fase}`));
+    run('abandonar');
+  }
+});
+
+test('nova: recusa rodar na pasta global do nabuco', () => {
+  const base = mkdtempSync(join(tmpdir(), 'nabuco global-'));
+  try {
+    const r = spawnSync(process.execPath, [CLI, 'nova', '--slug', 'x', '--tamanho', 'trivial', '--tipo', 'bug'],
+      { cwd: base, encoding: 'utf8', env: { ...process.env, NABUCO_HOME: join(base, '.nabuco'), NABUCO_HARNESS: 'teste' } });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /pasta global do nabuco; rode dentro de um projeto/);
+    assert.ok(!existsSync(join(base, '.nabuco', 'tarefas')));
+  } finally { rmSync(base, { recursive: true, force: true }); }
+});
+
+test('criterio-add: criterios.json sem lista → erro de regra', () => {
+  const dir = run('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug').out.trim();
+  writeFileSync(join(dir, 'criterios.json'), '{"tarefa":"x"}');
+  const r = run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  assert.equal(r.code, 1);
+  assert.match(r.err, /criterios\.json inválido/);
 });
 
 test('mesmo slug no mesmo dia gera sufixo', () => {

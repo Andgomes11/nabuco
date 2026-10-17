@@ -35,6 +35,18 @@ test('tarefa: cobre os comandos do CLI e as regras-chave', () => {
   assert.match(t, /nabuco-<papel>/);
   assert.match(t, /checadores_locais/);
   assert.match(t, /no máximo 2 rodadas/i);
+  assert.match(t, /nunca rode `abandonar` sem ok explícito do usuário/);
+});
+
+test('setup: diagnóstico de ferramentas autorizado e dica do .gitignore', () => {
+  const s = readFileSync(join(RAIZ, 'skills', 'setup', 'SKILL.md'), 'utf8');
+  assert.match(s, /diagnóstico de ferramentas autorizado/);
+  assert.match(s, /nomes exatos das ferramentas/);
+  assert.match(s, /SEM-FERRAMENTA/);
+  assert.match(s, /Edit, Write ou Bash/);
+  assert.match(s, /restrição NÃO vale/);
+  assert.match(s, /--checadores-locais/);
+  assert.match(s, /\.gitignore/);
 });
 
 test('skills de design: existem, têm checklist e crédito', () => {
