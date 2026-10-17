@@ -1,0 +1,24 @@
+{
+  "claude": {
+    "arquiteto": { "model": "opus", "effort": "high" },
+    "debugger":  { "model": "opus", "effort": "high" },
+    "designer":  { "model": "inherit", "effort": "high" },
+    "dev":       { "model": "inherit", "effort": "high" },
+    "devops":    { "model": "inherit", "effort": "high" },
+    "docs":      { "model": "sonnet", "effort": "medium" },
+    "revisor":   { "model": "opus", "effort": "high" },
+    "seguranca": { "model": "opus", "effort": "high" },
+    "tester":    { "model": "sonnet", "effort": "medium" }
+  },
+  "codex": {
+    "arquiteto": { "model": "gpt-6-astra", "effort": "high" },
+    "debugger":  { "model": "gpt-6-astra", "effort": "high" },
+    "designer":  { "model": null, "effort": "high" },
+    "dev":       { "model": null, "effort": "high" },
+    "devops":    { "model": null, "effort": "high" },
+    "docs":      { "model": "gpt-6.1-sol", "effort": "medium" },
+    "revisor":   { "model": "gpt-6-astra", "effort": "high" },
+    "seguranca": { "model": "gpt-6-astra", "effort": "high" },
+    "tester":    { "model": "gpt-6.1-sol", "effort": "medium" }
+  }
+}
