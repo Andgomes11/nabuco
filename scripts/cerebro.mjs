@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { acharProjeto, nabucoHome, dirTarefas, lerAtiva, nomeTarefaValido } from './lib/caminhos.mjs';
 import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
@@ -157,7 +157,9 @@ const comandos = {
     const c = lerEntrada(v.de);
     if (!c || !PAPEIS_CEREBRO.includes(c.papel) || typeof c.sintoma !== 'string') throw new ErroUso('--de precisa de papel válido e sintoma');
     if (c.tags != null && (!Array.isArray(c.tags) || c.tags.some(t => typeof t !== 'string'))) throw new ErroUso('--de: tags deve ser uma lista de textos');
+    const igual = x => String(x.sintoma ?? '').trim() === c.sintoma.trim() && String(x.causa_raiz ?? '').trim() === String(c.causa_raiz ?? '').trim();
     const similares = lerCasos(nabucoHome(), c.papel)
+      .filter(x => !igual(x))
       .map(x => ({ arquivo: x.arquivo, score: scoreSimilar(c, x) }))
       .filter(x => x.score >= 0.4)
       .sort((a, b) => b.score - a.score)
@@ -240,6 +242,11 @@ const comandos = {
     exigir(v.id, 'id');
     if (!['sim', 'nao'].includes(v.util)) throw new ErroUso('--util deve ser sim ou nao');
     const achada = exigirLicao(v.id);
+    const ativa = lerAtiva(projeto);
+    const log = ativa && join(ativa.dir, 'eventos.jsonl');
+    if (log && existsSync(log) && readFileSync(log, 'utf8').split('\n').some(l => {
+      try { const e = JSON.parse(l); return e.tipo === 'licao_usada' && e.dados?.id === v.id; } catch { return false; }
+    })) throw new ErroRegra(`lição "${v.id}" já recebeu voto nesta tarefa`);
     const util = v.util === 'sim';
     const b = achada.bloco;
     const bloco = { ...b, positivos: b.positivos + (util ? 1 : 0), negativos: b.negativos + (util ? 0 : 1), ultima: hoje() };

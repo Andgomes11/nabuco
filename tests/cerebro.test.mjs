@@ -428,3 +428,33 @@ test('similares com tags que não são lista de textos → exit 2 (achado final 
   const semTags = caso(); delete semTags.tags;
   assert.equal(run(['similares', '--de', arq('s.json', semTags)]).status, 0);
 });
+
+const TAREFA_CLI = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'tarefa.mjs');
+const novaTarefa = () => spawnSync(process.execPath, [TAREFA_CLI, 'nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug'], { cwd: proj, encoding: 'utf8', env: { ...process.env, NABUCO_HOME: home, NABUCO_HARNESS: 'claude' } });
+
+test('voto é idempotente por tarefa: segundo voto na mesma lição é recusado', () => {
+  addLicao(); addLicao(distintas(1));
+  assert.equal(novaTarefa().status, 0);
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  const antes = readFileSync(globalDev(), 'utf8');
+  const r = run(['voto', '--id', 'dev-0001', '--util', 'sim']);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /já recebeu voto nesta tarefa/);
+  assert.equal(readFileSync(globalDev(), 'utf8'), antes);
+  assert.match(antes, /👍 1/);
+  assert.equal(hist().filter(x => x.tipo === 'licao_usada').length, 1);
+  assert.equal(run(['voto', '--id', 'dev-0002', '--util', 'sim']).status, 0);
+});
+
+test('voto sem tarefa ativa continua contando cada voto', () => {
+  addLicao();
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  assert.match(readFileSync(globalDev(), 'utf8'), /👍 2/);
+});
+
+test('similares ignora o próprio caso já gravado', () => {
+  assert.equal(run(['caso-add', '--de', arq('c.json', caso())]).status, 0);
+  const r = run(['similares', '--de', arq('c.json', caso())]);
+  assert.deepEqual(JSON.parse(r.stdout), { similares: [], destilar: false });
+});

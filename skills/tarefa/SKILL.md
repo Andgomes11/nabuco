@@ -61,7 +61,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 
 ## 7. Fechar
 Resumo ao usuário: o que mudou, critérios com evidência, achados relevantes e decisões. Commit só se o usuário pedir.
-Vote também nas lições do Gerente aplicadas no §1 (`C voto --id <id> --util sim|nao`).
+Vote também nas lições do Gerente (as do §1, não as do escritor) — um voto por lição por tarefa (`C voto --id <id> --util sim|nao`).
 Depois do resumo, ofereça a retrospectiva (`/nabuco:retro` no Claude Code, `$retro` no Codex). Em tarefa `trivial` sem falhas, só se o usuário quiser.
 
 ## Sempre
