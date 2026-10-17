@@ -169,6 +169,7 @@ test('/api/fontes: v maior que o histórico → 409; indicador desconhecido 404;
   assert.equal((await pedir('/api/fontes/chefe/aceitacao_1a?v=2')).status, 404);
   assert.equal((await pedir('/api/fontes/dev/__proto__?v=2')).status, 404);
   const d = json(await pedir('/api/dossie/revisor'));
+  assert.equal(d.versao, 2, 'o dossiê diz com quantos eventos do histórico foi calculado');
   const indicador = 'amostra';
   assert.ok(d.fontes[indicador].length > 0, 'revisor tem fontes de amostra');
   const r = await pedir(`/api/fontes/revisor/${indicador}?v=2`);

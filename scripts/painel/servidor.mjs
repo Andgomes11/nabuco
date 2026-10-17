@@ -171,9 +171,12 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     if (partes[1] === 'dossie' && partes.length === 3) {
       const papel = partes[2];
       if (!PAPEL_SET.has(papel)) return texto(res, 404, 'não encontrado');
-      return jsonRes(res, montarDossie({
-        papel, eventos: lerHistorico(home), home, projeto, modelos: carregarModelos(raiz), nome: nomes[papel],
-      }));
+      const eventos = lerHistorico(home);
+      // versao = eventos usados: o front pede as fontes com ela, e os índices batem com o dossiê exibido
+      return jsonRes(res, {
+        ...montarDossie({ papel, eventos, home, projeto, modelos: carregarModelos(raiz), nome: nomes[papel] }),
+        versao: eventos.length,
+      });
     }
 
     if (partes[1] === 'fontes' && partes.length === 4) {

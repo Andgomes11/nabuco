@@ -372,7 +372,7 @@ async function carregarDossie() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     if (dossieAberto !== alvo) return; // fechou ou trocou de funcionário
-    alvo.versao = estado?.versao;
+    alvo.versao = Number.isInteger(d.versao) ? d.versao : estado?.versao; // as fontes usam a versão do dossiê exibido
     $('d-aviso').hidden = true;
     renderizarDossie(d);
   } catch (erro) {
@@ -530,9 +530,10 @@ function renderizarDossie(d) {
 }
 
 // ---------- fontes ----------
-async function buscarFontes(papel, indicador, repetiu = false) {
-  const r = await fetch(urlFontes(papel, indicador, estado?.versao ?? 0, CHAVE));
-  if (r.status === 409 && !repetiu) { await recarregarEstado(); return buscarFontes(papel, indicador, true); }
+// pede com a versão do dossiê aberto: os números clicados foram calculados sobre esses eventos
+async function buscarFontes(papel, indicador) {
+  const r = await fetch(urlFontes(papel, indicador, dossieAberto?.versao ?? estado?.versao ?? 0, CHAVE));
+  if (r.status === 409) throw new Error('o histórico mudou; atualize o dossiê');
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const corpo = await r.json();
   return Array.isArray(corpo.eventos) ? corpo.eventos : [];
