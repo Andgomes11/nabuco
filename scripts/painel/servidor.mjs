@@ -66,18 +66,25 @@ function lerEventosJsonl(arq) {
   return evs;
 }
 
-// tarefa ativa para o montarEstado; qualquer falha de leitura = sem tarefa
-function lerTarefa(projeto) {
-  try {
-    const ativa = lerAtiva(projeto);
-    if (!ativa) return null;
-    return {
-      nome: ativa.nome,
-      estado: lerJson(join(ativa.dir, 'estado.json')),
-      criterios: lerJson(join(ativa.dir, 'criterios.json')),
-      eventos: lerEventosJsonl(join(ativa.dir, 'eventos.jsonl')),
-    };
-  } catch { return null; }
+// tarefa ativa para o montarEstado. Falha de leitura (arquivo sendo regravado) mantém a última leitura boa
+// da MESMA tarefa; sem leitura boa dela = sem tarefa.
+function leitorTarefa(projeto) {
+  let boa = null;
+  return () => {
+    let ativa;
+    try { ativa = lerAtiva(projeto); } catch { return null; }
+    if (!ativa) { boa = null; return null; }
+    try {
+      boa = {
+        nome: ativa.nome,
+        estado: lerJson(join(ativa.dir, 'estado.json')),
+        // sem criterios.json ainda (tarefa no começo): gate "nenhum critério definido"
+        criterios: existsSync(join(ativa.dir, 'criterios.json')) ? lerJson(join(ativa.dir, 'criterios.json')) : null,
+        eventos: lerEventosJsonl(join(ativa.dir, 'eventos.jsonl')),
+      };
+      return boa;
+    } catch { return boa?.nome === ativa.nome ? boa : null; }
+  };
 }
 
 function ativaDir(projeto) {
@@ -105,9 +112,10 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   const avatares = avataresDe(raiz);
   const nomeProjeto = basename(projeto);
   const arqHistorico = join(home, 'historico.jsonl');
+  const lerTarefa = leitorTarefa(projeto);
 
   const estadoAtual = () => montarEstado({
-    eventos: lerHistorico(home), tarefa: lerTarefa(projeto), projeto: nomeProjeto, nomes, avatares, agora: Date.now(),
+    eventos: lerHistorico(home), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, agora: Date.now(),
   });
 
   let portaReal = 0;
@@ -226,7 +234,8 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     timer = null;
     if (clientes.size === 0) return;
     let js;
-    try { js = JSON.stringify(estadoAtual()); } catch { return; }
+    // falhou agora: esquece a assinatura para a próxima verificação tentar de novo
+    try { js = JSON.stringify(estadoAtual()); } catch { ultimaAssinatura = null; return; }
     for (const c of [...clientes.keys()]) enviarEstado(c, js);
   }
   function agendar() { if (!timer) timer = setTimeout(enviar, DEBOUNCE); }

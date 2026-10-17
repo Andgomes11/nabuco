@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, appendFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, appendFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -117,6 +117,21 @@ test('/api/estado com tarefa ativa', async () => {
   const e = json(await pedir('/api/estado'));
   assert.equal(e.tarefa.nome, 'minha tarefa');
   assert.equal(e.funcionarios[0].estado, 'aguardando');
+});
+
+test('/api/estado: leitura falha no meio de uma regravação → mantém a última leitura boa da mesma tarefa', async () => {
+  const dir = join(proj, '.nabuco', 'tarefas', 't');
+  mkdirSync(dir, { recursive: true });
+  appendFileSync(join(proj, '.nabuco', 'ativa'), 't\n');
+  writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 't', fase: 'executando' }));
+  // sem criterios.json ainda: a tarefa aparece, com gate vazio
+  assert.deepEqual(json(await pedir('/api/estado')).tarefa.gate, { passou: 0, total: 0, pendencias: [] });
+  writeFileSync(join(dir, 'criterios.json'), JSON.stringify({ criterios: [] }));
+  assert.equal(json(await pedir('/api/estado')).tarefa.nome, 't');
+  writeFileSync(join(dir, 'estado.json'), '{meio regravad');
+  const e = json(await pedir('/api/estado'));
+  assert.equal(e.tarefa?.nome, 't');
+  assert.equal(e.tarefa.fase, 'executando');
 });
 
 test('/api/estado com tarefa ilegível → tarefa null, sem quebrar', async () => {
