@@ -386,3 +386,13 @@ test('gravarArquivo é atômico: sobrescreve e não deixa .tmp (achado final #5)
   assert.equal(readFileSync(a, 'utf8'), 'dois\n');
   assert.ok(!existsSync(a + '.tmp'));
 });
+
+test('sinais --tarefa só aceita nome de pasta: caminho → exit 2 (achado final #6)', () => {
+  mkdirSync(join(proj, '.nabuco', 'tarefas', '2026-01-01-a'), { recursive: true });
+  mkdirSync(join(base, 'fora'), { recursive: true });
+  for (const ruim of ['../../../fora', '../tarefas/2026-01-01-a', '2026-01-01-a/..', '..\\..\\..\\fora', '..', '.', '']) {
+    const r = run(['sinais', '--tarefa', ruim]);
+    assert.equal(r.status, 2, ruim);
+    assert.equal(r.stdout, '', ruim);
+  }
+});

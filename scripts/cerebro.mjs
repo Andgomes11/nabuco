@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util';
 import { existsSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { acharProjeto, nabucoHome, dirTarefas, lerAtiva } from './lib/caminhos.mjs';
+import { acharProjeto, nabucoHome, dirTarefas, lerAtiva, nomeTarefaValido } from './lib/caminhos.mjs';
 import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
@@ -287,7 +287,8 @@ const comandos = {
   sinais() {
     const { values: v } = opcoes({ tarefa: { type: 'string' } });
     let dir;
-    if (v.tarefa) {
+    if (v.tarefa !== undefined) {
+      if (!nomeTarefaValido(v.tarefa)) throw new ErroUso('--tarefa deve ser só o nome da pasta da tarefa em .nabuco/tarefas (sem barra nem ..)');
       dir = join(dirTarefas(projeto), v.tarefa);
       if (!existsSync(dir)) throw new ErroRegra(`tarefa "${v.tarefa}" não encontrada`);
     } else {
