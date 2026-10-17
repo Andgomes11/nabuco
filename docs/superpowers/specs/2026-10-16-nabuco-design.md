@@ -53,6 +53,9 @@ nabuco/
 ├── scripts/
 │   ├── gate-evidencia.mjs             # chamado via ${CLAUDE_PLUGIN_ROOT} (Codex também define)
 │   ├── evento.mjs                     # grava eventos.jsonl / historico.jsonl
+│   ├── tarefa.mjs                     # CLI do ciclo da tarefa (nova, criterio, fase, concluir…)
+│   ├── setup.mjs  status.mjs  versoes.mjs
+│   ├── lib/                           # módulos compartilhados
 │   ├── cerebro.mjs                    # busca, destilação, métricas
 │   └── painel/                        # servidor Node + front-end do painel
 ├── papeis/<papel>.md                  # fonte única de cada funcionário
@@ -74,7 +77,9 @@ Fora do plugin:
 
 <projeto>/.nabuco/
 ├── licoes/<papel>.md          (lições de escopo "projeto")
+├── ativa                      (nome da pasta da tarefa ativa)
 └── tarefas/AAAA-MM-DD-<slug>/
+    ├── estado.json            (slug, tamanho, tipo, fase)
     ├── plano.md
     ├── progresso.md
     ├── criterios.json
@@ -86,7 +91,7 @@ Fora do plugin:
 | Ponto | Claude Code | Codex | Solução |
 |---|---|---|---|
 | Invocação | `/nabuco:tarefa` | `$tarefa` | mesma skill |
-| Agentes | `agents/*.md` no plugin | TOML em `~/.codex/agents/` (plugin não empacota agentes) | `build.mjs` gera ambos; `setup` instala os TOML |
+| Agentes | `agents/*.md` no plugin | TOML em `~/.codex/agents/` (plugin não empacota agentes) | `build.mjs` gera ambos; `setup` instala os TOML com nome `nabuco-<papel>` (Claude: `nabuco:<papel>`) |
 | Campos extras de skill (`model`, `effort`, `context`) | suportados | não | núcleo usa só o spec aberto; extras injetados apenas no adaptador Claude, se necessários |
 | Restringir ferramentas por agente | `tools` no frontmatter (validar em agente de plugin) | não há sandbox por agente | Claude: `tools`; se não valer em plugin, setup instala checadores em `~/.claude/agents/`. Codex: instrução + `git diff` conferido pelo Gerente após cada checador |
 | Gate | Stop/SubagentStop `{"decision":"block","reason"}` | Stop igual; exige trust em `/hooks` | mesmo script; e passo explícito na skill `tarefa` |
@@ -116,7 +121,7 @@ Definidos por escopo, ferramentas e limites. Prompt (`papeis/<papel>.md`) curto 
 - **Formato de entrega** de todo funcionário: `mudanças`, `decisões`, `evidência` (comando + saída resumida), `lições usadas` (id + 👍/👎), `bloqueios`.
 
 ### 4.1 Designer — composição
-- `design-web`: adaptado da skill oficial `frontend-design` (Apache 2.0, manter aviso): direção estética anti-genérica, plano de tokens, autocrítica.
+- `design-web`: texto próprio inspirado na skill oficial `frontend-design` (crédito no NOTICE, sem copiar conteúdo): direção estética anti-genérica, plano de tokens, autocrítica.
 - `design-mobile`: referências próprias curtas de Apple HIG e Material 3 (com data e link oficial) + checklist mobile: alvo de toque 44pt/48dp, Dynamic Type/escala de fonte, safe areas, dark mode, VoiceOver/TalkBack.
 - Regra explícita: em app nativo, convenção da plataforma vence ousadia estética.
 - Integrações opcionais se instaladas: ui-ux-pro-max (base multiplataforma), plugin Figma oficial, `chrome-devtools-mcp:a11y-debugging`.
@@ -134,7 +139,7 @@ Definidos por escopo, ferramentas e limites. Prompt (`papeis/<papel>.md`) curto 
 3. **Planejar** (média/sensível): criar pasta da tarefa com `plano.md` (objetivo, método, restrições, validação; ≤ ~40 linhas) e `criterios.json` (cada critério com comando de verificação). **Parar e aguardar aprovação.**
 4. **Executar**: um escritor por vez. Entrada: plano, critérios, `progresso.md`, lições recuperadas (seção 7.3). Saída no formato de entrega; Gerente anexa ao `progresso.md` (decisões, estado, próximo passo). `/nabuco:tarefa` sem argumentos retoma do `progresso.md`.
 5. **Checar** (por risco): checadores em paralelo, contexto limpo (diff + plano + critérios), só achados que afetam corretude, sem cota. Gerente filtra e devolve ao escritor. Máximo 2 rodadas; depois, decisão do usuário.
-6. **Gate de evidência**: todo critério `passou` com saída registrada. Duas camadas: passo explícito da skill + hook Stop/SubagentStop que bloqueia se houver tarefa ativa com critério pendente, retornando o que falta.
+6. **Gate de evidência**: todo critério `passou` com saída registrada. Duas camadas: (a) `tarefa.mjs concluir` recusa concluir com critério pendente ou sem evidência; (b) hook **Stop** (só o agente principal) bloqueia o fim do turno quando a tarefa ativa está nas fases `executando` ou `checando` — o Gerente precisa concluir com evidência ou passar explicitamente para `aguardando_usuario` antes de parar. `SubagentStop` só registra eventos (bloquear checadores ao terminar seria errado). Fases: `planejando`, `aguardando_aprovacao`, `executando`, `checando`, `aguardando_usuario`, `concluida`, `abandonada`.
 7. **Fechar**: resumo ao usuário com evidências; Docs se API pública mudou; abrir retrospectiva.
 
 Limites globais: nunca tocar produção; nunca push/deploy; commit só com ok do usuário; nenhuma dependência nova fora do plano aprovado.
