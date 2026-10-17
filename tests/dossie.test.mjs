@@ -39,6 +39,22 @@ test('tendência: sem "antes" (poucas tarefas) => null', () => {
   assert.deepEqual(tendencia([], 'dev'), NULO);
 });
 
+test('tendência: atributo cujas fontes não mudam sem as 10 tarefas recentes => null (sem "antes" real)', () => {
+  // casos com tarefa null não saem ao tirar as tarefas recentes: faro/confiabilidade teriam antes === agora
+  const eventos = [...muitas(1, 3, false), ev('caso_criado', null, 'dev', { turnos: 2 }), ev('caso_criado', null, 'dev', { turnos: 4, recorrencia_de: 'x' })];
+  const t = tendencia(eventos, 'dev');
+  assert.equal(t.faro, null);
+  assert.equal(t.confiabilidade, null);
+  assert.equal(t.precisao, null);
+});
+
+test('tendência: fontes que mudam continuam dando seta', () => {
+  const casoVelho = ev('caso_criado', 'antiga', 'dev', { turnos: 10 });
+  const fecha = ev('tarefa_fechada', 'antiga', 'gerente');
+  const eventos = [casoVelho, fecha, ...muitas(1, 10, false).flatMap(e => e.tipo === 'agente_inicio' ? [e, ev('caso_criado', e.tarefa, 'dev', { turnos: 1 })] : [e])];
+  assert.equal(tendencia(eventos, 'dev').faro, '↑');
+});
+
 let home, projeto, homeAntes;
 const licao = (id, titulo, pos, neg, regra) =>
   `## ${id} · ${titulo}\n- gatilho: g\n- expectativa: e\n- faça: f\n- por quê: p\n- evidência: x · escopo: global\n- 👍 ${pos}  👎 ${neg}\n${regra ? `- regra: ${regra}\n` : ''}\n`;

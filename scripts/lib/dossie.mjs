@@ -35,14 +35,33 @@ const seta = (agora, antes) => {
   return '→';
 };
 
+// indicadores que alimentam cada atributo (os mesmos do clique em modelo.mjs)
+const INDICADORES_ATRIBUTO = { faro: ['turnos_ate_causa'], precisao: ['aceitacao_1a'], confiabilidade: ['recorrencia', 'escapes'] };
+
+// índices (no array original) das fontes dos indicadores; `mapa` traduz índices de um subconjunto
+const fontesDe = (fontes, indicadores, mapa) =>
+  [...new Set(indicadores.flatMap(ind => (fontes?.[ind] ?? []).map(i => (mapa ? mapa[i] : i))))].sort((a, b) => a - b);
+
 // Atributos com todos os eventos vs. sem os eventos das 10 tarefas fechadas mais recentes.
+// Sem "antes" real (as fontes do atributo são as mesmas nos dois lados, ou o antes não tem fonte) => null.
 export function tendencia(eventos, papel) {
   const evs = Array.isArray(eventos) ? eventos : [];
   const recentes = tarefasRecentes(evs, TAREFAS_RECENTES);
-  const antigos = evs.filter(e => { const k = e && typeof e === 'object' ? chaveTarefa(e) : null; return k === null || !recentes.has(k); });
-  const agora = atributos(calcularMetricas(evs)[papel]);
-  const antes = atributos(calcularMetricas(antigos)[papel]);
-  return { faro: seta(agora.faro, antes.faro), precisao: seta(agora.precisao, antes.precisao), confiabilidade: seta(agora.confiabilidade, antes.confiabilidade) };
+  const mapa = [];
+  evs.forEach((e, i) => { const k = e && typeof e === 'object' ? chaveTarefa(e) : null; if (k === null || !recentes.has(k)) mapa.push(i); });
+  const antigos = mapa.map(i => evs[i]);
+  const mAgora = calcularMetricas(evs, { fontes: true })[papel];
+  const mAntes = calcularMetricas(antigos, { fontes: true })[papel];
+  const agora = atributos(mAgora);
+  const antes = atributos(mAntes);
+  const res = NULO();
+  for (const [attr, inds] of Object.entries(INDICADORES_ATRIBUTO)) {
+    const fAgora = fontesDe(mAgora?.fontes, inds);
+    const fAntes = fontesDe(mAntes?.fontes, inds, mapa);
+    if (fAntes.length === 0 || fAntes.join(',') === fAgora.join(',')) continue;
+    res[attr] = seta(agora[attr], antes[attr]);
+  }
+  return res;
 }
 
 const equipamento = (modelos, harness, papel) => {
