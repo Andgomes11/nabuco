@@ -1,4 +1,4 @@
-# Design: plugin "time" — time de funcionários-agentes que aprende
+# Design: plugin "nabuco" — time de funcionários-agentes que aprende
 
 - Data: 2026-10-16
 - Autor: Anderson Gomes (com Claude)
@@ -42,12 +42,12 @@ Sala de Replay, Placar semanal, 1:1 gerado por IA, embeddings, ui-ux-pro-max emb
 Um único plugin com dois manifestos; conteúdo compartilhado; adaptadores gerados.
 
 ```
-time/
+nabuco/
 ├── .claude-plugin/plugin.json + marketplace.json
 ├── .codex-plugin/plugin.json          # "skills": "./skills/", "hooks": "./hooks/hooks.json"
 ├── .agents/plugins/marketplace.json   # marketplace Codex
 ├── skills/                            # compartilhado; frontmatter só com campos do padrão agentskills.io
-│   ├── tarefa/  retro/  licoes/  time/  setup/  painel/
+│   ├── tarefa/  retro/  licoes/  status/  setup/  painel/
 │   ├── docs-atuais/  design-web/  design-mobile/
 ├── hooks/hooks.json                   # SubagentStart, SubagentStop, Stop (compartilhado)
 ├── scripts/
@@ -66,13 +66,13 @@ time/
 
 Fora do plugin:
 ```
-~/.time/                       (repositório git)
+~/.nabuco/                       (repositório git)
 ├── casos/<papel>/AAAA-MM-<slug>.md
 ├── licoes/<papel>.md
 ├── licoes/arquivo/<papel>.md
 └── historico.jsonl
 
-<projeto>/.time/
+<projeto>/.nabuco/
 ├── licoes/<papel>.md          (lições de escopo "projeto")
 └── tarefas/AAAA-MM-DD-<slug>/
     ├── plano.md
@@ -85,7 +85,7 @@ Fora do plugin:
 
 | Ponto | Claude Code | Codex | Solução |
 |---|---|---|---|
-| Invocação | `/time:tarefa` | `$tarefa` | mesma skill |
+| Invocação | `/nabuco:tarefa` | `$tarefa` | mesma skill |
 | Agentes | `agents/*.md` no plugin | TOML em `~/.codex/agents/` (plugin não empacota agentes) | `build.mjs` gera ambos; `setup` instala os TOML |
 | Campos extras de skill (`model`, `effort`, `context`) | suportados | não | núcleo usa só o spec aberto; extras injetados apenas no adaptador Claude, se necessários |
 | Restringir ferramentas por agente | `tools` no frontmatter (validar em agente de plugin) | não há sandbox por agente | Claude: `tools`; se não valer em plugin, setup instala checadores em `~/.claude/agents/`. Codex: instrução + `git diff` conferido pelo Gerente após cada checador |
@@ -99,7 +99,7 @@ Definidos por escopo, ferramentas e limites. Prompt (`papeis/<papel>.md`) curto 
 
 | Papel | Faz | Não pode | Escreve | Claude | Codex |
 |---|---|---|---|---|---|
-| Gerente (skill `tarefa`) | classifica, planeja, delega, registra, gate, retro | editar código de produto | só `.time/` | sessão | sessão |
+| Gerente (skill `tarefa`) | classifica, planeja, delega, registra, gate, retro | editar código de produto | só `.nabuco/` | sessão | sessão |
 | Dev | implementa + testes | mudar escopo; adicionar dependência fora do plano | sim | inherit/high | herda/high |
 | Debugger | reproduz → teste de regressão → causa raiz → fix mínimo | corrigir sem teste falhando antes | sim (sequencial) | opus/high | gpt-6-astra/high |
 | Designer | UI web e mobile; tokens antes do código; autocrítica com screenshot | violar HIG/M3 em app nativo | sim (sequencial) | inherit/high | herda/high |
@@ -132,7 +132,7 @@ Definidos por escopo, ferramentas e limites. Prompt (`papeis/<papel>.md`) curto 
    - Usuário pode forçar o tamanho.
 2. **Entender**: ler código relevante; `docs-atuais` para libs envolvidas (versão do lockfile → doc dessa versão).
 3. **Planejar** (média/sensível): criar pasta da tarefa com `plano.md` (objetivo, método, restrições, validação; ≤ ~40 linhas) e `criterios.json` (cada critério com comando de verificação). **Parar e aguardar aprovação.**
-4. **Executar**: um escritor por vez. Entrada: plano, critérios, `progresso.md`, lições recuperadas (seção 7.3). Saída no formato de entrega; Gerente anexa ao `progresso.md` (decisões, estado, próximo passo). `/time:tarefa` sem argumentos retoma do `progresso.md`.
+4. **Executar**: um escritor por vez. Entrada: plano, critérios, `progresso.md`, lições recuperadas (seção 7.3). Saída no formato de entrega; Gerente anexa ao `progresso.md` (decisões, estado, próximo passo). `/nabuco:tarefa` sem argumentos retoma do `progresso.md`.
 5. **Checar** (por risco): checadores em paralelo, contexto limpo (diff + plano + critérios), só achados que afetam corretude, sem cota. Gerente filtra e devolve ao escritor. Máximo 2 rodadas; depois, decisão do usuário.
 6. **Gate de evidência**: todo critério `passou` com saída registrada. Duas camadas: passo explícito da skill + hook Stop/SubagentStop que bloqueia se houver tarefa ativa com critério pendente, retornando o que falta.
 7. **Fechar**: resumo ao usuário com evidências; Docs se API pública mudou; abrir retrospectiva.
@@ -150,7 +150,7 @@ Limites globais: nunca tocar produção; nunca push/deploy; commit só com ok do
 
 ## 6. Eventos
 
-`eventos.jsonl` por tarefa (e cópia consolidada em `~/.time/historico.jsonl`), uma linha por evento:
+`eventos.jsonl` por tarefa (e cópia consolidada em `~/.nabuco/historico.jsonl`), uma linha por evento:
 ```json
 {"ts":"ISO","tarefa":"slug","projeto":"nome","harness":"claude|codex","tipo":"...","papel":"...","dados":{}}
 ```
@@ -160,8 +160,8 @@ Gravação: hooks (automáticos) + skills via `node ${CLAUDE_PLUGIN_ROOT}/script
 ## 7. Cérebro (aprendizado por erros)
 
 ### 7.1 Camadas
-1. **Casos** (`~/.time/casos/<papel>/`): diário de erros resolvidos. Nunca injetado no prompt; consultado por busca.
-2. **Lições** (`licoes/<papel>.md`, global; ou `.time/licoes/` do projeto): padrões destilados; limite 30 por papel; só 1–3 relevantes injetadas.
+1. **Casos** (`~/.nabuco/casos/<papel>/`): diário de erros resolvidos. Nunca injetado no prompt; consultado por busca.
+2. **Lições** (`licoes/<papel>.md`, global; ou `.nabuco/licoes/` do projeto): padrões destilados; limite 30 por papel; só 1–3 relevantes injetadas.
 3. **Regras**: lições promovidas a hook/lint/teste.
 
 ### 7.2 Formatos
@@ -190,12 +190,12 @@ Lição:
 ### 7.3 Recuperação
 `cerebro.mjs buscar` por grep/tokenização sobre gatilho, tags, tokens do sintoma e arquivos da tarefa; ranking por correspondência + 👍−👎 + recência; retorna no máximo 3 lições (+ link do caso). Debugger pode chamar sob demanda. Sem embeddings até ~200 casos.
 
-### 7.4 Retrospectiva (`/time:retro`, também ao fechar tarefa)
+### 7.4 Retrospectiva (`/nabuco:retro`, também ao fechar tarefa)
 1. Coletar sinais do `progresso.md`/eventos: falhas, retrabalho, achados, critérios que falharam antes de passar, correções do usuário.
 2. Propor casos (com evidência) e 0–3 lições por funcionário envolvido (inclui Gerente). Filtros: descartar falhas transitórias (rede, token, PATH, serviço fora); duplicata → incrementar contador; contradição → mostrar ambas.
 3. Destilar lição quando ≥2 casos similares (tags/sintoma) ou 1 caso de custo alto.
 4. Usuário aprova/edita/muda escopo/descarta item a item.
-5. Aplicar como **deltas** (nunca reescrever o arquivo inteiro); commit no git de `~/.time/`.
+5. Aplicar como **deltas** (nunca reescrever o arquivo inteiro); commit no git de `~/.nabuco/`.
 Higiene: >30 lições → propor fusão/aposentadoria; sem uso em 90 dias ou 👎>👍 → revisão/arquivo; muitos 👍, 0 👎 e verificável mecanicamente → propor promoção a regra.
 
 ### 7.5 Métricas de senioridade
@@ -203,7 +203,7 @@ Por papel, com tamanho da amostra: recorrência (erro com lição que voltou), t
 
 ## 8. Painel Matrix
 
-- `/time:painel`: servidor Node local (127.0.0.1, porta livre, chave na URL), lê `historico.jsonl` + `eventos.jsonl` do projeto, atualiza ao vivo (SSE), abre o navegador.
+- `/nabuco:painel`: servidor Node local (127.0.0.1, porta livre, chave na URL), lê `historico.jsonl` + `eventos.jsonl` do projeto, atualiza ao vivo (SSE), abre o navegador.
 - **Monitores**: um por funcionário; chuva de código com velocidade = atividade; vermelho/parado = travado aguardando usuário; apagado = ocioso. Cabeçalho com tarefa, fase e gate.
 - **Avatares**: imagens geradas por IA em `assets/avatares/<papel>-<nivel>.png` (prompts em `avatares/PROMPTS.md`); efeitos de estado aplicados por CSS/canvas; fallback em silhueta se faltar imagem. Regra: todo elemento visual corresponde a um dado.
 - **Dossiê** (clique): nível ("clearance") e amostra, equipamento (modelo/effort), atributos com tendência (Faro, Precisão, Confiabilidade), diário de batalha (casos), "programas carregados" (lições com 👍/👎, ruins destacadas), talentos (regras). Cada número clicável até os eventos de origem.
@@ -211,9 +211,9 @@ Por papel, com tamanho da amostra: recorrência (erro com lição que voltou), t
 
 ## 9. Instalação e setup
 
-- Claude: `/plugin marketplace add Andgomes11/time` → `/plugin install time`.
-- Codex: `codex plugin marketplace add Andgomes11/time` → habilitar → trust dos hooks em `/hooks`.
-- `/time:setup` (`$setup`): criar `~/.time/` + git init; instalar `codex-agents/*.toml` em `~/.codex/agents/`; checar Node ≥ 20; validar `modelos.json` e frontmatter gerado (campos/modelos inválidos são ignorados silenciosamente pelos harnesses); testar restrição `tools` em agente de plugin e aplicar fallback; sugerir `.time/` no `.gitignore`.
+- Claude: `/plugin marketplace add Andgomes11/nabuco` → `/plugin install nabuco`.
+- Codex: `codex plugin marketplace add Andgomes11/nabuco` → habilitar → trust dos hooks em `/hooks`.
+- `/nabuco:setup` (`$setup`): criar `~/.nabuco/` + git init; instalar `codex-agents/*.toml` em `~/.codex/agents/`; checar Node ≥ 20; validar `modelos.json` e frontmatter gerado (campos/modelos inválidos são ignorados silenciosamente pelos harnesses); testar restrição `tools` em agente de plugin e aplicar fallback; sugerir `.nabuco/` no `.gitignore`.
 
 ## 10. Testes do plugin
 
@@ -226,7 +226,7 @@ Por papel, com tamanho da amostra: recorrência (erro com lição que voltou), t
 
 | Fase | Entrega |
 |---|---|
-| 1. Núcleo | papéis + build (Claude/Codex), skills `tarefa`, `setup`, `time`, `docs-atuais`, `design-web`, `design-mobile`, gate, eventos, manifestos/marketplaces |
+| 1. Núcleo | papéis + build (Claude/Codex), skills `tarefa`, `setup`, `status`, `docs-atuais`, `design-web`, `design-mobile`, gate, eventos, manifestos/marketplaces |
 | 2. Cérebro | casos, lições, regras, `cerebro.mjs`, `retro`, `licoes`, métricas |
 | 3. Painel | servidor, monitores, avatares, dossiê |
 
