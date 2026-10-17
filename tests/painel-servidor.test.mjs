@@ -56,6 +56,7 @@ test('sem chave e chave errada → 403; com chave → / 200 text/html', async ()
   assert.match(r.headers['content-type'], /^text\/html/);
   assert.equal(r.headers['x-content-type-options'], 'nosniff');
   assert.match(r.headers['content-security-policy'], /default-src 'self'/);
+  for (const d of ["frame-ancestors 'none'", "base-uri 'none'", "form-action 'none'"]) assert.ok(r.headers['content-security-policy'].includes(d), d);
 });
 
 test('fetch nativo com a url impressa funciona', async () => {
@@ -267,7 +268,7 @@ test('requisição HTTP malformada → 400 com cabeçalhos de segurança', async
   });
   assert.match(resposta, /^HTTP\/1\.1 400/);
   assert.match(resposta, /x-content-type-options: nosniff/i);
-  assert.match(resposta, /content-security-policy: default-src 'self'/i);
+  assert.match(resposta, /content-security-policy: default-src 'self'.*frame-ancestors 'none'/i);
 });
 
 test('index.html sai com a chave nos recursos estáticos (toda requisição exige a chave)', async () => {

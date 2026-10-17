@@ -30,7 +30,7 @@ const PAPEL_SET = new Set(FUNCIONARIOS);
 
 const SEGURANCA = {
   'x-content-type-options': 'nosniff',
-  'content-security-policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'",
+  'content-security-policy': "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
   'referrer-policy': 'no-referrer',
 };
 
