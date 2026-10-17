@@ -1,0 +1,13 @@
+{
+  "name": "nabuco",
+  "version": "0.1.0",
+  "description": "Time de funcionários-agentes que aprende com erros — Claude Code + Codex",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "build": "node build.mjs",
+    "build:check": "node build.mjs --check"
+  }
+}
