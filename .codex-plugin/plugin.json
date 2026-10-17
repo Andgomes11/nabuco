@@ -1,0 +1,12 @@
+{
+  "name": "nabuco",
+  "version": "0.1.0",
+  "description": "Time de funcionários-agentes que aprende com erros, com gate de evidência.",
+  "author": { "name": "Anderson Gomes" },
+  "homepage": "https://github.com/Andgomes11/nabuco",
+  "repository": "https://github.com/Andgomes11/nabuco",
+  "keywords": ["agentes", "subagentes", "time", "gate", "evidencia"],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": { "displayName": "nabuco" }
+}

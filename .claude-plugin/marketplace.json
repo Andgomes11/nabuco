@@ -1,0 +1,11 @@
+{
+  "name": "nabuco",
+  "owner": { "name": "Anderson Gomes" },
+  "plugins": [
+    {
+      "name": "nabuco",
+      "source": "./",
+      "description": "Time de funcionários-agentes que aprende com erros (Claude Code + Codex)."
+    }
+  ]
+}
