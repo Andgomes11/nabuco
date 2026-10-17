@@ -278,3 +278,32 @@ test('index.html sai com a chave nos recursos estáticos (toda requisição exig
   assert.ok(html.includes(`app.js?k=${srv.chave}`));
   for (const rec of ['/estilo.css', '/app.js', '/modelo.mjs']) assert.equal((await pedir(rec)).status, 200, rec);
 });
+
+test('/api/fontes com v menor que o histórico: fontes calculadas só sobre os v primeiros eventos', async () => {
+  mkdirSync(home, { recursive: true });
+  const ts = new Date().toISOString();
+  const tarefaDev = t => [
+    { ts, tipo: 'agente_inicio', projeto: 'p', tarefa: t, papel: 'dev', dados: {} },
+    { ts, tipo: 'tarefa_fechada', projeto: 'p', tarefa: t, papel: null, dados: {} },
+  ];
+  const evs = [...tarefaDev('t1'), ...tarefaDev('t2')];
+  appendFileSync(join(home, 'historico.jsonl'), evs.map(e => JSON.stringify(e)).join('\n') + '\n');
+  assert.deepEqual(json(await pedir('/api/fontes/dev/amostra?v=2')).eventos, [evs[0]]);
+  assert.deepEqual(json(await pedir('/api/fontes/dev/amostra?v=4')).eventos, [evs[0], evs[2]]);
+  assert.deepEqual(json(await pedir('/api/fontes/dev/amostra?v=0')).eventos, []);
+});
+
+test('SSE: troca de tarefa — ativa criada aparece; ativa removida (tarefa concluída) volta a "nenhuma tarefa"', async () => {
+  const sse = await abrirSSE();
+  await sse.esperar(e => e.tarefa === null, 2000);
+  const dir = join(proj, '.nabuco', 'tarefas', 'nova tarefa');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 'nova', fase: 'executando' }));
+  writeFileSync(join(proj, '.nabuco', 'ativa'), 'nova tarefa\n');
+  await sse.esperar(e => e.tarefa?.nome === 'nova tarefa', 3000);
+  const n = sse.estados.length;
+  // como o "tarefa concluir": fase concluida e ativa removida
+  writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 'nova', fase: 'concluida' }));
+  unlinkSync(join(proj, '.nabuco', 'ativa'));
+  await sse.esperar(e => sse.estados.indexOf(e) >= n && e.tarefa === null, 3000);
+});

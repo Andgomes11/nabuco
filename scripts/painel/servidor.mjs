@@ -237,6 +237,9 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     timer = null;
     if (clientes.size === 0) return;
     let js;
+    // a assinatura passa a ser a dos arquivos lidos agora: uma mudança entre a verificação e a leitura
+    // (ex.: ativa criada e removida em menos de 1 s) ainda dispara um novo envio na próxima verificação
+    ultimaAssinatura = assinatura().sig;
     // falhou agora: esquece a assinatura para a próxima verificação tentar de novo
     try { js = JSON.stringify(estadoAtual()); } catch { ultimaAssinatura = null; return; }
     for (const c of [...clientes.keys()]) enviarEstado(c, js);
