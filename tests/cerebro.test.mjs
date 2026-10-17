@@ -82,6 +82,27 @@ test('similares', () => {
   assert.equal(caro.destilar, true);
 });
 
+test('similares: tags idênticas bastam mesmo com sintomas de palavras diferentes', () => {
+  const tags = ['estatistica', 'divisor', 'off-by-one'];
+  run(['caso-add', '--de', arq('a.json', caso({
+    sintoma: 'estat.test.mjs falhava: media([2,4,6]) retornava 6 em vez de 4',
+    causa_raiz: 'divisor errado: xs.length - 1', correcao: 'usar xs.length', tags,
+  }))]);
+  const r = run(['similares', '--de', arq('b.json', caso({
+    sintoma: "teste 'variancia populacional' falha: variancia([2,4,6]) retorna 2, esperado 8/3",
+    causa_raiz: 'divisor errado: xs.length + 1', correcao: 'usar xs.length', tags: ['Estatistica', 'divisor', 'off-by-one'],
+  }))]);
+  assert.equal(r.status, 0, r.stderr);
+  const s = JSON.parse(r.stdout);
+  assert.equal(s.destilar, true); assert.equal(s.similares.length, 1); assert.equal(s.similares[0].score, 1);
+});
+
+test('similares: tags disjuntas e texto sem relação → não similar', () => {
+  run(['caso-add', '--de', arq('a.json', caso({ sintoma: 'media errada', causa_raiz: 'divisor errado', tags: ['estatistica', 'divisor'] }))]);
+  const s = JSON.parse(run(['similares', '--de', arq('b.json', caso({ sintoma: 'Layout quebrado no mobile', causa_raiz: 'flex sem wrap', tags: ['css', 'layout'] }))]).stdout);
+  assert.deepEqual(s, { similares: [], destilar: false });
+});
+
 test('comando desconhecido → exit 2', () => {
   assert.equal(run(['xyz']).status, 2);
 });

@@ -7,7 +7,7 @@ import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
 import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } from './lib/constantes.mjs';
-import { similaridade } from './lib/texto.mjs';
+import { similaridade, tokenizar } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
 import { calcularMetricas, lerHistorico } from './lib/metricas.mjs';
 import { commitHome } from './lib/git.mjs';
@@ -35,7 +35,15 @@ function lerEntrada(arq) {
   try { return lerJson(arq); }
   catch (e) { throw new ErroUso(`não foi possível ler --de "${arq}": ${e.message}`); }
 }
-const textoSimilar = c => `${c.sintoma ?? ''} ${(c.tags ?? []).join(' ')}`;
+const textoSimilar = c => `${c.sintoma ?? ''} ${c.causa_raiz ?? ''}`;
+const conjTags = c => new Set((c.tags ?? []).map(t => tokenizar(t).join('-')).filter(Boolean));
+function jaccardConj(A, B) {
+  if (A.size === 0 || B.size === 0) return 0;
+  let inter = 0;
+  for (const t of A) if (B.has(t)) inter++;
+  return inter / (A.size + B.size - inter);
+}
+const scoreSimilar = (a, b) => Math.max(jaccardConj(conjTags(a), conjTags(b)), similaridade(textoSimilar(a), textoSimilar(b)));
 
 // ---------- lições ----------
 const CAMPOS_TEXTO = ['titulo', 'gatilho', 'expectativa', 'faca', 'porque'];
@@ -149,11 +157,11 @@ const comandos = {
     const c = lerEntrada(v.de);
     if (!c || !PAPEIS_CEREBRO.includes(c.papel) || typeof c.sintoma !== 'string') throw new ErroUso('--de precisa de papel válido e sintoma');
     if (c.tags != null && (!Array.isArray(c.tags) || c.tags.some(t => typeof t !== 'string'))) throw new ErroUso('--de: tags deve ser uma lista de textos');
-    const alvo = textoSimilar(c);
     const similares = lerCasos(nabucoHome(), c.papel)
-      .map(x => ({ arquivo: x.arquivo, score: Number(similaridade(alvo, textoSimilar(x)).toFixed(3)) }))
+      .map(x => ({ arquivo: x.arquivo, score: scoreSimilar(c, x) }))
       .filter(x => x.score >= 0.4)
-      .sort((a, b) => b.score - a.score);
+      .sort((a, b) => b.score - a.score)
+      .map(x => ({ ...x, score: Number(x.score.toFixed(3)) }));
     const destilar = similares.length >= 1 || (Number.isInteger(c.turnos) && c.turnos >= CUSTO_ALTO_TURNOS);
     console.log(JSON.stringify({ similares, destilar }, null, 2));
   },
