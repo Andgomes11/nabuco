@@ -43,6 +43,11 @@ export function urlFontes(papel, indicador, versao, chave) {
   return `/api/fontes/${encodeURIComponent(papel)}/${encodeURIComponent(indicador)}?v=${encodeURIComponent(versao)}&k=${encodeURIComponent(chave)}`;
 }
 
+// votos de uma lição: os eventos licao_usada daquele id
+export function urlFontesLicao(papel, id, versao, chave) {
+  return `/api/fontes/${encodeURIComponent(papel)}/licao/${encodeURIComponent(id)}?v=${encodeURIComponent(versao)}&k=${encodeURIComponent(chave)}`;
+}
+
 // indicadores da Fase 2 com fontes clicáveis; formato decide como o número aparece
 export const INDICADORES = [
   { chave: 'amostra', rotulo: 'tarefas na amostra', formato: 'inteiro' },

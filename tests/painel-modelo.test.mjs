@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   velocidadeChuva, corDoEstado, rotuloNivel, formatarAtributo, seta, urlAvatar,
-  rotuloEstado, urlFontes, formatarIndicador, ATRIBUTOS, INDICADORES,
+  rotuloEstado, urlFontes, urlFontesLicao, formatarIndicador, ATRIBUTOS, INDICADORES,
 } from '../scripts/painel/publico/modelo.mjs';
 
 test('velocidadeChuva: ocioso e aguardando param; trabalhando = 2 + 18 × atividade', () => {
@@ -114,4 +114,9 @@ test('resumoGate: sem critérios => neutro "nenhum critério definido", nunca "t
   assert.deepEqual(pend.pendencias, [{ id: 'c2', motivo: 'm' }]);
   // placar incompleto sem pendências listadas não vira "todos passaram"
   assert.equal(resumoGate({ passou: 1, total: 2, pendencias: [] }).situacao, 'pendente');
+});
+
+test('urlFontesLicao: eventos licao_usada de uma lição, com versão e chave', () => {
+  assert.equal(urlFontesLicao('dev', 'dev-0001', 7, 'k1'), '/api/fontes/dev/licao/dev-0001?v=7&k=k1');
+  assert.equal(urlFontesLicao('dev', 'a/b', 7, 'k&1'), '/api/fontes/dev/licao/a%2Fb?v=7&k=k%261');
 });

@@ -15,7 +15,7 @@ try { modelo = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`); } ca
 }
 const {
   velocidadeChuva, corDoEstado, rotuloEstado, rotuloNivel, formatarAtributo, formatarIndicador,
-  seta, urlAvatar, urlFontes, resumoGate, INDICADORES, ATRIBUTOS,
+  seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, INDICADORES, ATRIBUTOS,
 } = modelo;
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
 
@@ -437,7 +437,9 @@ function numero(texto, papel, indicadores, titulo, fontes, rotuloAcessivel) {
   b.setAttribute('aria-expanded', 'false');
   b.setAttribute('aria-controls', 'd-fontes');
   b.setAttribute('aria-label', `${rotuloAcessivel ?? titulo}: ${texto} — ver eventos de origem`);
-  b.addEventListener('click', () => mostrarFontes(papel, indicadores.filter(i => Array.isArray(fontes?.[i])), titulo, b));
+  const comFonte = indicadores.filter(i => Array.isArray(fontes?.[i]));
+  b.addEventListener('click', () => mostrarFontes($('d-fontes'), titulo, b,
+    async () => { const g = []; for (const ind of comFonte) g.push([comFonte.length > 1 ? ROTULO_IND.get(ind) ?? ind : null, await buscarFontes(papel, ind)]); return g; }));
   return b;
 }
 
@@ -535,12 +537,15 @@ function renderizarDossie(d) {
       const titulo = el('span');
       titulo.append(el('span', 'id', `${l.id} · ${l.escopo} `), el('br'), document.createTextNode(l.titulo ?? ''));
       if (l.ruim) titulo.append(el('span', 'selo', 'ruim'));
-      const votos = el('span', 'votos', `+${l.positivos ?? 0} útil · −${l.negativos ?? 0} não`);
-      votos.setAttribute('aria-label', `${l.positivos ?? 0} votos útil, ${l.negativos ?? 0} não útil`);
+      const votos = el('span', 'votos');
+      votos.append(botaoVoto(papel, l, true), document.createTextNode(' · '), botaoVoto(papel, l, false));
       li.append(titulo, votos);
       ul.append(li);
     }
-    sLi.append(ul);
+    const caixaLicoes = el('div', 'fontes');
+    caixaLicoes.id = 'd-fontes-licoes';
+    caixaLicoes.hidden = true;
+    sLi.append(ul, caixaLicoes);
   }
 
   // talentos (lições promovidas)
@@ -569,6 +574,28 @@ async function buscarFontes(papel, indicador) {
   return Array.isArray(corpo.eventos) ? corpo.eventos : [];
 }
 
+async function buscarFontesLicao(papel, id) {
+  const r = await fetch(urlFontesLicao(papel, id, dossieAberto?.versao ?? estado?.versao ?? 0, CHAVE));
+  if (r.status === 409) throw new Error('o histórico mudou; atualize o dossiê');
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const corpo = await r.json();
+  return Array.isArray(corpo.eventos) ? corpo.eventos : [];
+}
+
+// 👍/👎 de uma lição: abre os eventos licao_usada daquele lado do voto
+function botaoVoto(papel, l, util) {
+  const n = (util ? l.positivos : l.negativos) ?? 0;
+  const b = el('button', 'num voto', util ? `+${n} útil` : `−${n} não`);
+  b.type = 'button';
+  b.setAttribute('aria-expanded', 'false');
+  b.setAttribute('aria-controls', 'd-fontes-licoes');
+  b.setAttribute('aria-label', `${l.id}: ${n} ${util ? 'votos útil' : 'votos não útil'} — ver eventos de origem`);
+  const titulo = `${l.id} · ${util ? 'votos útil' : 'votos não útil'}`;
+  b.addEventListener('click', () => mostrarFontes($('d-fontes-licoes'), titulo, b,
+    async () => [[null, (await buscarFontesLicao(papel, l.id)).filter(e => e?.dados?.util === util)]]));
+  return b;
+}
+
 const dois = n => String(n).padStart(2, '0');
 const formatarTs = t => { const d = new Date(t); return `${dois(d.getDate())}/${dois(d.getMonth() + 1)} ${dois(d.getHours())}:${dois(d.getMinutes())}:${dois(d.getSeconds())}`; };
 function linhaEvento(e) {
@@ -576,15 +603,18 @@ function linhaEvento(e) {
   const t = Date.parse(e?.ts);
   const tempo = el('time', null, Number.isNaN(t) ? String(e?.ts ?? '—') : formatarTs(t));
   if (!Number.isNaN(t)) tempo.dateTime = new Date(t).toISOString();
-  li.append(tempo, el('span', 'tipo', e?.tipo ?? '—'), el('span', 'tarefa', e?.tarefa ?? '(sem tarefa)'));
+  const tipo = el('span', 'tipo', e?.tipo ?? '—');
+  if (e?.tipo === 'licao_usada' && typeof e?.dados?.util === 'boolean') tipo.append(el('span', 'util', e.dados.util ? ' · útil' : ' · não útil'));
+  li.append(tempo, tipo, el('span', 'tarefa', e?.tarefa ?? '(sem tarefa)'));
   return li;
 }
 const MAX_EVENTOS = 200;
 const ROTULO_IND = new Map(INDICADORES.map(i => [i.chave, i.rotulo]));
 
-async function mostrarFontes(papel, indicadores, titulo, botao) {
-  const caixa = $('d-fontes');
-  for (const b of document.querySelectorAll('.num[aria-expanded="true"]')) b.setAttribute('aria-expanded', 'false');
+// eventos de origem de um número do dossiê. `buscar` devolve grupos [rótulo | null, eventos]
+async function mostrarFontes(caixa, titulo, botao, buscar) {
+  for (const b of document.querySelectorAll('[aria-controls][aria-expanded="true"]')) b.setAttribute('aria-expanded', 'false');
+  for (const c of document.querySelectorAll('.fontes')) if (c !== caixa) c.hidden = true; // uma origem aberta por vez
   botao.setAttribute('aria-expanded', 'true');
   caixa.hidden = false;
   const cab = el('div', 'fontes-cab');
@@ -601,12 +631,11 @@ async function mostrarFontes(papel, indicadores, titulo, botao) {
   const pedido = Symbol('fontes');
   caixa.__pedido = pedido;
   try {
-    const grupos = [];
-    for (const ind of indicadores) grupos.push([ind, await buscarFontes(papel, ind)]);
+    const grupos = await buscar();
     if (caixa.__pedido !== pedido) return;
     const conteudo = [];
-    for (const [ind, evs] of grupos) {
-      if (grupos.length > 1) conteudo.push(el('h5', null, ROTULO_IND.get(ind) ?? ind));
+    for (const [rotulo, evs] of grupos) {
+      if (rotulo) conteudo.push(el('h5', null, rotulo));
       if (!evs.length) { conteudo.push(el('p', 'vazio', 'nenhum evento')); continue; }
       const ol = el('ol', 'eventos');
       for (const e of evs.slice(-MAX_EVENTOS).reverse()) ol.append(linhaEvento(e)); // mais recentes primeiro

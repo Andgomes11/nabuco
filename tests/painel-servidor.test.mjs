@@ -376,3 +376,43 @@ test('SSE só por polling (observar: false, sem fs.watch): a mudança no histór
     assert.equal(s2.observando(), 0, 'nenhum fs.watch aberto');
   } finally { await s2.fechar(); }
 });
+
+const blocoLicao = (id, escopo) => `## ${id} · Lição ${id}\n- gatilho: g\n- expectativa: e\n- faça: f\n- por quê: p\n- evidência: x · escopo: ${escopo}\n- 👍 1  👎 1 · última: 2026-10-01
+\n`;
+
+test('/api/fontes/<papel>/licao/<id>: eventos licao_usada daquela lição, sobre os v primeiros eventos', async () => {
+  mkdirSync(join(home, 'licoes'), { recursive: true });
+  writeFileSync(join(home, 'licoes', 'dev.md'), '# Lições — dev\n\n' + blocoLicao('dev-0001', 'global') + blocoLicao('dev-0002', 'global'));
+  const ts = new Date().toISOString();
+  const voto = (id, util, projeto = 'Meu projeto') => ({ ts, tipo: 'licao_usada', projeto, tarefa: 't', papel: null, dados: { id, util } });
+  const evs = [voto('dev-0001', true), voto('dev-0002', false), { ts, tipo: 'achado', projeto: 'p', tarefa: 't', papel: 'dev', dados: { id: 'dev-0001' } }, voto('dev-0001', false, 'Outro')];
+  appendFileSync(join(home, 'historico.jsonl'), evs.map(e => JSON.stringify(e)).join('\n') + '\n');
+  const r = await pedir('/api/fontes/dev/licao/dev-0001?v=4');
+  assert.equal(r.status, 200);
+  assert.match(r.headers['content-type'], /^application\/json/);
+  assert.deepEqual(json(r).eventos, [evs[0], evs[3]], 'lição global: votos de qualquer projeto');
+  assert.deepEqual(json(await pedir('/api/fontes/dev/licao/dev-0001?v=1')).eventos, [evs[0]], 'só os v primeiros');
+  assert.deepEqual(json(await pedir('/api/fontes/dev/licao/dev-0002?v=4')).eventos, [evs[1]]);
+  // mesma segurança das outras rotas
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001?v=4', { chave: null })).status, 403);
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001?v=4', { host: 'evil.com' })).status, 403);
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001?v=5')).status, 409);
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001')).status, 400);
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001?v=4', { metodo: 'POST' })).status, 405);
+  // id validado e lição tem de existir para o papel
+  for (const id of ['dev-01', 'DEV-0001', '..', '%2e%2e', 'dev-0001x', '__proto__', 'dev-9999', 'revisor-0001']) {
+    assert.equal((await pedir(`/api/fontes/dev/licao/${id}?v=4`)).status, 404, id);
+  }
+  assert.equal((await pedir('/api/fontes/chefe/licao/dev-0001?v=4')).status, 404);
+  assert.equal((await pedir('/api/fontes/dev/licao/dev-0001/extra?v=4')).status, 404);
+});
+
+test('/api/fontes/<papel>/licao/<id>: lição do escopo projeto só conta votos deste projeto', async () => {
+  mkdirSync(join(proj, '.nabuco', 'licoes'), { recursive: true });
+  writeFileSync(join(proj, '.nabuco', 'licoes', 'dev.md'), '# Lições — dev\n\n' + blocoLicao('dev-0003', 'projeto'));
+  mkdirSync(home, { recursive: true });
+  const ts = new Date().toISOString();
+  const evs = ['Meu projeto', 'Outro'].map(projeto => ({ ts, tipo: 'licao_usada', projeto, tarefa: 't', papel: null, dados: { id: 'dev-0003', util: true } }));
+  appendFileSync(join(home, 'historico.jsonl'), evs.map(e => JSON.stringify(e)).join('\n') + '\n');
+  assert.deepEqual(json(await pedir('/api/fontes/dev/licao/dev-0003?v=2')).eventos, [evs[0]]);
+});

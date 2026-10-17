@@ -13,6 +13,7 @@ import { carregarModelos } from '../lib/modelos.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
 import { montarEstado, FUNCIONARIOS } from '../lib/painel-estado.mjs';
 import { montarDossie } from '../lib/dossie.mjs';
+import { blocosDe } from '../lib/repositorio-licoes.mjs';
 
 const RAIZ_PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PUBLICO = join(dirname(fileURLToPath(import.meta.url)), 'publico');
@@ -26,6 +27,7 @@ const ESTATICOS = new Map([
   ['/modelo.mjs', ['modelo.mjs', TEXTO_JS]],
 ]);
 const RE_AVATAR = /^[a-z]+-[1-4]\.jpg$/;
+const RE_LICAO = /^[a-z]+-\d{4,}$/;
 const PAPEL_SET = new Set(FUNCIONARIOS);
 
 const SEGURANCA = {
@@ -199,6 +201,23 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
         ...montarDossie({ papel, eventos, home, projeto, modelos: carregarModelos(raiz), nome: nomes[papel] }),
         versao: eventos.length,
       });
+    }
+
+    // votos de uma lição (👍/👎 do dossiê) → os eventos licao_usada dela, sobre os v primeiros do histórico
+    if (partes[1] === 'fontes' && partes.length === 5 && partes[3] === 'licao') {
+      const [, , papel, , id] = partes;
+      if (!PAPEL_SET.has(papel) || !RE_LICAO.test(id)) return texto(res, 404, 'não encontrado');
+      const v = url.searchParams.get('v');
+      if (v === null || !/^\d{1,15}$/.test(v)) return texto(res, 400, 'versão inválida');
+      const versao = Number(v);
+      const eventos = lerHistorico();
+      if (versao > eventos.length) return texto(res, 409, 'histórico mudou; recarregue');
+      // a lição tem de existir para o papel; a do escopo projeto só conta votos dados neste projeto
+      const escopo = ['projeto', 'global'].find(esc => blocosDe(esc, papel, projeto).some(b => b.id === id));
+      if (!escopo) return texto(res, 404, 'não encontrado');
+      const daLicao = e => e.tipo === 'licao_usada' && e.dados && typeof e.dados === 'object' && e.dados.id === id
+        && (escopo === 'global' || e.projeto === nomeProjeto);
+      return jsonRes(res, { eventos: eventos.slice(0, versao).filter(daLicao) });
     }
 
     if (partes[1] === 'fontes' && partes.length === 4) {
