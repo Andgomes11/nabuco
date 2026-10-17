@@ -95,3 +95,9 @@ for (const arq of readdirSync(join(RAIZ, 'papeis')).filter(f => f.endsWith('.md'
     if (arq === 'debugger.md') assert.ok(p.includes('cerebro.mjs" buscar'), 'debugger deve saber buscar lições');
   });
 }
+
+test('painel: skill existe e roda o servidor em segundo plano', () => {
+  assert.ok(skills.includes('painel'));
+  const p = lerSkill('painel');
+  for (const c of ['servidor.mjs', 'segundo plano', '127.0.0.1']) assert.ok(p.includes(c), `faltou "${c}"`);
+});

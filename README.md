@@ -2,7 +2,7 @@
 
 Time de funcionários-agentes para **Claude Code** e **OpenAI Codex**: um Gerente coordena Dev, Debugger, Designer, DevOps, Docs, Arquiteto, Revisor, Segurança e Tester — com plano aprovado, um escritor por vez e **gate de evidência** (nada é "pronto" sem o comando que prova).
 
-> Fase 2 (cérebro de aprendizado: casos → lições → regras). Próxima fase: painel Matrix.
+> Fase 3 (painel Matrix) sobre o cérebro de aprendizado: casos → lições → regras.
 
 ## Instalação
 
@@ -30,6 +30,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Ver o time e a instalação | `/nabuco:status` | `$status` |
 | Retrospectiva da tarefa | `/nabuco:retro` | `$retro` |
 | Ver e cuidar das lições | `/nabuco:licoes` | `$licoes` |
+| Abrir o painel Matrix | `/nabuco:painel` | `$painel` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
 
@@ -42,6 +43,14 @@ O time aprende com os erros que resolveu, em três camadas:
 
 Ao fechar uma tarefa, `/nabuco:retro` (`$retro`) propõe casos e lições a partir das falhas; `/nabuco:licoes` (`$licoes`) lista, mostra métricas de senioridade, edita, aposenta e promove.
 **Nenhum caso ou lição é criado ou alterado sem a sua aprovação**, item a item (votos e eventos são registrados automaticamente). As mudanças em `~/.nabuco/` são commitadas no git de lá; nunca no repositório do projeto.
+
+## Painel
+
+`/nabuco:painel` (`$painel`) sobe um servidor local e abre o painel no navegador: um monitor por funcionário (estado, atividade, nível), a tarefa ativa, o gate e o dossiê de cada um (atributos, diário, lições, equipamento). Clicar num número mostra os eventos que o geraram.
+- Somente leitura, só em `127.0.0.1`, protegido por chave na URL (não compartilhe o endereço).
+- Funciona offline, sem dependências. Para fechar, encerre o processo.
+- Avatares em `assets/avatares/<papel>-<nivel>.jpg`; imagem ausente cai numa silhueta.
+- Opções: `--porta <n>`, `--sem-abrir`.
 
 ## Modelos por funcionário
 

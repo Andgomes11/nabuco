@@ -1,6 +1,10 @@
 # Prompts dos avatares — time Matrix
 
-Salve como `<papel>-<nivel>.png` em `assets/avatares/` (ex: `debugger-1.png`). Níveis: 1 Júnior · 2 Pleno · 3 Sênior · 4 Especialista.
+Salve como `assets/avatares/<papel>-<nivel>.jpg`, 512×512 JPEG (ex: `debugger-1.jpg`). Níveis: 1 Júnior · 2 Pleno · 3 Sênior · 4 Especialista.
+
+## Como converter
+
+Qualquer editor de imagens serve (exportar 512×512, JPEG, ≤ 200 KB). No Windows, no PowerShell, dá para redimensionar com `System.Drawing` (`Bitmap` → `Graphics.DrawImage` em 512×512 → `Save` com `ImageFormat.Jpeg`).
 
 ## Estilo base (cole SEMPRE no início)
 
@@ -27,15 +31,15 @@ No Midjourney use `--sref` (estilo) e `--cref` (personagem) a partir da 1ª imag
 
 | Papel | Arquivo | Identidade |
 |---|---|---|
-| Gerente | `gerente-N.png` | `calm captain of a hovercraft crew, Morpheus-like authority, small round pince-nez glasses, holding a glowing holographic task board` |
-| Dev | `dev-N.png` | `focused coder, hands near a floating green keyboard of light, short hair, determined look` |
-| Debugger | `debugger-N.png` | `sharp investigator, glowing magnifying-glass reflection in eyes, one eyebrow raised, examining a floating red error glyph` |
-| Designer | `designer-N.png` | `serene Oracle-like creative, warm kitchen-light accent mixed with green, holding a floating color palette made of light` |
-| DevOps | `devops-N.png` | `engineer of the ship, mechanic gloves, cables and server lights behind, operator headset` |
-| Docs | `docs-N.png` | `archivist / keymaker, small round glasses, ring of glowing keys and floating pages of code` |
-| Arquiteto | `arquiteto-N.png` | `elderly distinguished Architect, white beard, light grey suit, wall of monitors behind, analytical gaze` |
-| Revisor | `revisor-N.png` | `meticulous inspector, scanning beam over floating lines of code, stern but fair expression` |
-| Segurança | `seguranca-N.png` | `Agent-like security sentinel, dark suit, earpiece with coiled wire, firewall grid shimmering behind` |
-| Tester | `tester-N.png` | `martial-arts sparring trainer in a dojo construct, testing stance, green checkmarks floating like sparks` |
+| Gerente | `gerente-N.jpg` | `calm captain of a hovercraft crew, Morpheus-like authority, small round pince-nez glasses, holding a glowing holographic task board` |
+| Dev | `dev-N.jpg` | `focused coder, hands near a floating green keyboard of light, short hair, determined look` |
+| Debugger | `debugger-N.jpg` | `sharp investigator, glowing magnifying-glass reflection in eyes, one eyebrow raised, examining a floating red error glyph` |
+| Designer | `designer-N.jpg` | `serene Oracle-like creative, warm kitchen-light accent mixed with green, holding a floating color palette made of light` |
+| DevOps | `devops-N.jpg` | `engineer of the ship, mechanic gloves, cables and server lights behind, operator headset` |
+| Docs | `docs-N.jpg` | `archivist / keymaker, small round glasses, ring of glowing keys and floating pages of code` |
+| Arquiteto | `arquiteto-N.jpg` | `elderly distinguished Architect, white beard, light grey suit, wall of monitors behind, analytical gaze` |
+| Revisor | `revisor-N.jpg` | `meticulous inspector, scanning beam over floating lines of code, stern but fair expression` |
+| Segurança | `seguranca-N.jpg` | `Agent-like security sentinel, dark suit, earpiece with coiled wire, firewall grid shimmering behind` |
+| Tester | `tester-N.jpg` | `martial-arts sparring trainer in a dojo construct, testing stance, green checkmarks floating like sparks` |
 
 Observação: o Arquiteto é "idoso" por identidade; nos níveis, mude só roupa/luz/aura, não a idade.

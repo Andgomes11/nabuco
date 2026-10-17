@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -44,4 +44,19 @@ test('hooks: Stop chama o gate; SubagentStart/Stop chamam evento --hook; caminho
 test('README documenta instalação nos dois harnesses', () => {
   const r = readFileSync(join(RAIZ, 'README.md'), 'utf8');
   for (const s of ['/plugin marketplace add Andgomes11/nabuco', 'codex plugin marketplace add Andgomes11/nabuco', '/nabuco:setup', '$setup', '/hooks', 'npm run build']) assert.ok(r.includes(s), s);
+});
+
+test('avatares: nomes válidos e até 200 KB', () => {
+  const dir = join(RAIZ, 'assets', 'avatares');
+  const re = /^(gerente|arquiteto|debugger|designer|dev|devops|docs|revisor|seguranca|tester)-[1-4]\.jpg$/;
+  const arqs = readdirSync(dir);
+  assert.ok(arqs.length > 0);
+  for (const a of arqs) {
+    assert.match(a, re, a);
+    assert.ok(statSync(join(dir, a)).size <= 200 * 1024, `${a} passou de 200 KB`);
+  }
+});
+
+test('versão 0.3.0 nos três lugares', () => {
+  for (const m of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(j(m).version, '0.3.0', m);
 });
