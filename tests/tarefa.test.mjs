@@ -133,3 +133,14 @@ test('status com tarefa ativa', () => {
   assert.equal(s.estado.fase, 'planejando');
   assert.deepEqual(s.criterios, { total: 1, passou: 0, pendencias: [{ id: 'c1', motivo: 'status "pendente"' }] });
 });
+
+test('criterio --status falhou grava evidência (500 chars) no evento', () => {
+  run('nova', '--slug', 'ev', '--tamanho', 'media', '--tipo', 'bug');
+  run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  assert.equal(run('criterio', '--id', 'c1', '--status', 'falhou', '--evidencia=X').code, 0);
+  run('criterio', '--id', 'c1', '--status', 'falhou', '--evidencia', 'y'.repeat(600));
+  const nome = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  const evs = linhas(join(proj, '.nabuco', 'tarefas', nome, 'eventos.jsonl')).filter(e => e.tipo === 'criterio' && e.dados.status === 'falhou');
+  assert.equal(evs[0].dados.evidencia, 'X');
+  assert.equal(evs[1].dados.evidencia.length, 500);
+});

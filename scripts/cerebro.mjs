@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { acharProjeto, nabucoHome } from './lib/caminhos.mjs';
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { acharProjeto, nabucoHome, dirTarefas, lerAtiva } from './lib/caminhos.mjs';
+import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
 import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } from './lib/constantes.mjs';
@@ -255,6 +258,33 @@ const comandos = {
       const caso = bloco.evidencia[0];
       return serializarBloco(bloco) + (caso ? `caso: ${caso}\n` : '');
     }).join('\n'));
+  },
+
+  sinais() {
+    const { values: v } = opcoes({ tarefa: { type: 'string' } });
+    let dir;
+    if (v.tarefa) {
+      dir = join(dirTarefas(projeto), v.tarefa);
+      if (!existsSync(dir)) throw new ErroRegra(`tarefa "${v.tarefa}" não encontrada`);
+    } else {
+      const ativa = lerAtiva(projeto);
+      if (ativa) dir = ativa.dir;
+      else {
+        const pasta = dirTarefas(projeto);
+        const nomes = existsSync(pasta) ? readdirSync(pasta, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort().reverse() : [];
+        if (!nomes.length) throw new ErroRegra('nenhuma tarefa encontrada neste projeto');
+        dir = join(pasta, nomes[0]);
+      }
+    }
+    console.log(JSON.stringify(coletarSinais(dir), null, 2));
+  },
+
+  higiene() {
+    const { values: v } = opcoes({ papel: { type: 'string' } });
+    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    const blocos = (v.papel ? [v.papel] : PAPEIS_CEREBRO)
+      .flatMap(p => [...blocosDe('global', p, projeto), ...blocosDe('projeto', p, projeto)]);
+    console.log(JSON.stringify(propostasHigiene(ativas(blocos), hoje()), null, 2));
   },
 };
 

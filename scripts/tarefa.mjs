@@ -96,7 +96,7 @@ const comandos = {
     if (!item) throw new ErroRegra(`critério "${id}" não existe`);
     Object.assign(item, { status: v.status, evidencia: v.evidencia ?? '', em: agora() });
     gravar(a, 'criterios.json', c);
-    registrar({ tipo: 'criterio', dados: { id, status: v.status }, projeto });
+    registrar({ tipo: 'criterio', dados: { id, status: v.status, ...(v.status === 'falhou' && v.evidencia ? { evidencia: v.evidencia.slice(0, 500) } : {}) }, projeto });
     console.log(`critério ${id}: ${v.status}`);
   },
 

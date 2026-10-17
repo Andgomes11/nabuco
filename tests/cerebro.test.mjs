@@ -289,3 +289,20 @@ test('buscar por --arquivos', () => {
   const j = JSON.parse(run(['buscar', '--papel', 'dev', '--texto', 'zzzz', '--arquivos', 'src/a/user.ts,b.ts', '--json']).stdout);
   assert.equal(j.length, 1);
 });
+
+test('sinais sem nenhuma tarefa → exit 1', () => {
+  assert.equal(run(['sinais']).status, 1);
+});
+
+test('sinais usa a pasta mais recente e --tarefa inexistente → exit 1', () => {
+  for (const n of ['2026-01-01-a', '2026-02-01-b']) mkdirSync(join(proj, '.nabuco', 'tarefas', n), { recursive: true });
+  assert.equal(JSON.parse(run(['sinais']).stdout).tarefa, '2026-02-01-b');
+  assert.equal(JSON.parse(run(['sinais', '--tarefa', '2026-01-01-a']).stdout).tarefa, '2026-01-01-a');
+  assert.equal(run(['sinais', '--tarefa', 'nao-existe']).status, 1);
+});
+
+test('higiene com home vazia → []', () => {
+  const r = run(['higiene']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(r.stdout), []);
+});
