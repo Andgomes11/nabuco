@@ -8,16 +8,20 @@ import http from 'node:http';
 import { iniciar } from '../scripts/painel/servidor.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
-let base, proj, home, srv;
+let base, proj, home, srv, homeAntes;
 
 beforeEach(async () => {
   base = mkdtempSync(join(tmpdir(), 'nabuco painel-'));
   proj = join(base, 'Meu projeto'); home = join(base, 'home vazia');
   mkdirSync(join(proj, '.git'), { recursive: true });
+  // lições do dossiê vêm de nabucoHome(): nunca ler o ~/.nabuco real
+  homeAntes = process.env.NABUCO_HOME;
+  process.env.NABUCO_HOME = home;
   srv = await iniciar({ porta: 0, raiz: RAIZ, projeto: proj, home });
 });
 afterEach(async () => {
   await srv.fechar();
+  if (homeAntes === undefined) delete process.env.NABUCO_HOME; else process.env.NABUCO_HOME = homeAntes;
   rmSync(base, { recursive: true, force: true });
 });
 
@@ -132,6 +136,7 @@ test('/api/dossie: papel desconhecido 404; dev 200 com diario vazio', async () =
   assert.equal(r.status, 200);
   const d = json(r);
   assert.deepEqual(d.diario, []);
+  assert.deepEqual(d.licoes, [], 'lições vêm da home temporária, não do ~/.nabuco real');
   assert.equal(d.nome, 'Dev');
   assert.equal((await pedir('/api/dossie/gerente')).status, 200);
 });
