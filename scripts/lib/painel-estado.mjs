@@ -37,7 +37,7 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
     if (papel === 'gerente') {
       if (tarefa && FASES_ESPERA.has(fase)) estado = 'aguardando';
       else if (tarefa && FASES_TRABALHO.has(fase) && evsTarefa.some(e => tempo(e) >= limite30)) estado = 'trabalhando';
-      recentes5 = evsTarefa.filter(e => e.papel === null && tempo(e) >= limite5).length;
+      recentes5 = evsTarefa.filter(e => (e.papel === null || e.papel === 'gerente') && tempo(e) >= limite5).length;
     } else {
       const meus = evs.filter(e => e.papel === papel);
       if (agenteAberto(meus) && meus.some(e => tempo(e) >= limite30)) estado = 'trabalhando';

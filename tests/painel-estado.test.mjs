@@ -110,3 +110,9 @@ test('início antigo morto não mantém o papel trabalhando', () => {
   const a2 = ev('agente_inicio', 'dev', 2, { agent_id: 'a2' });
   assert.equal(func(montarEstado({ ...base, eventos: [morto, a1, a1fim, a2] }), 'dev').estado, 'trabalhando');
 });
+
+test('gerente: atividade conta eventos da tarefa com papel null ou "gerente"', () => {
+  const evs = [ev('x', null, 1), ev('tarefa_fase', 'gerente', 1), ev('tarefa_fase', 'gerente', 2), ev('criterio', 'dev', 1)];
+  const g = func(montarEstado({ ...base, eventos: [], tarefa: tar('executando', evs) }), 'gerente');
+  assert.equal(g.atividade, 0.3);
+});
