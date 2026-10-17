@@ -15,7 +15,7 @@ Você conduz a retrospectiva como **Gerente**. Objetivo: o time não repetir o m
 ## 1. Sinais
 Rode `C sinais` (tarefa ativa ou a mais recente) ou `C sinais --tarefa <nome da tarefa>` (só o nome da pasta em `.nabuco/tarefas/`, ex.: `2026-10-17-login`). A saída é JSON: `tarefa`, `criterios_falhos`, `rodadas`, `achados`, `gate_bloqueios`, `correcoes_usuario`, `licoes_usadas`, `log`, `papeis`, `transitorios`.
 - `criterios_falhos` inclui os critérios que falharam e depois passaram — é justamente o sinal que interessa (o erro foi resolvido e há prova).
-- Descarte `transitorios` (rede, token, PATH, serviço fora): não viram caso nem lição.
+- Descarte `transitorios` (rede, token, PATH, serviço fora): não viram caso nem lição. A detecção é por padrão de texto e pode errar, então nunca descarte em silêncio: liste os descartados ao usuário numa linha (ex.: "Descartei como transitórios: c2 (ETIMEDOUT), c4 (429)") — se ele disser que algum era falha real, trate-o como `criterios_falhos`.
 - Sem nenhum sinal: diga "nada a aprender nesta tarefa" e vá para o passo 6.
 
 ## 2. Casos (rascunho)
