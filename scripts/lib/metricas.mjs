@@ -76,7 +76,8 @@ export function calcularMetricas(eventos) {
     const recorrencia = casos.length ? casos.filter(e => dadosDe(e).recorrencia_de).length / casos.length : null;
     const turnos_ate_causa = media(casos.map(e => dadosDe(e).turnos).filter(n => typeof n === 'number' && Number.isFinite(n)));
 
-    const escapes = participadas.flat().filter(e => e.tipo === 'correcao_usuario' && e.papel === papel && dadosDe(e).apos_pronto === true).length;
+    // escape só existe para quem escreve: checador/gerente não ganham nível por participar (spec 7.5)
+    const escapes = !escritor ? null : participadas.flat().filter(e => e.tipo === 'correcao_usuario' && e.papel === papel && dadosDe(e).apos_pronto === true).length;
 
     const votos = meus.filter(e => e.tipo === 'licao_usada' && typeof dadosDe(e).util === 'boolean');
     const pct_util = votos.length ? votos.filter(e => dadosDe(e).util).length / votos.length : null;
@@ -85,7 +86,7 @@ export function calcularMetricas(eventos) {
     const indicadores = [
       aceitacao_1a,
       recorrencia === null ? null : 1 - recorrencia,
-      amostra > 0 ? 1 - Math.min(1, escapes / amostra) : null,
+      escapes !== null && amostra > 0 ? 1 - Math.min(1, escapes / amostra) : null,
       pct_util,
     ].filter(x => x !== null);
     const score = media(indicadores);

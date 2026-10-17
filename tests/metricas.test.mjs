@@ -84,7 +84,7 @@ test('janela: so tarefas fechadas, ordenadas por ts', () => {
 test('sem dados: todos os papeis presentes, incl. gerente', () => {
   const m = calcularMetricas([]);
   assert.equal(Object.keys(m).length, 10);
-  assert.deepEqual(m.gerente, { amostra: 0, aceitacao_1a: null, tentativas_ate_verde: null, recorrencia: null, turnos_ate_causa: null, escapes: 0, pct_util: null, promocoes: 0, score: null, nivel: null, provisorio: true });
+  assert.deepEqual(m.gerente, { amostra: 0, aceitacao_1a: null, tentativas_ate_verde: null, recorrencia: null, turnos_ate_causa: null, escapes: null, pct_util: null, promocoes: 0, score: null, nivel: null, provisorio: true });
 });
 
 test('provisorio: amostra 9 vs 10', () => {
@@ -122,4 +122,19 @@ test('lerHistorico: ausente => [], ignora invalidas e sem tipo', () => {
     writeFileSync(join(d, 'historico.jsonl'), ['{"tipo":"a"}', 'lixo{', '{"x":1}', '{"tipo":3}', '', '[1]', 'null', '{"tipo":"b"}'].join('\r\n'));
     assert.deepEqual(lerHistorico(d).map(e => e.tipo), ['a', 'b']);
   } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test('checador não ganha nível só por participar: escapes só existe para escritores (achado final #3)', () => {
+  const evs = muitas(1, 12).concat(Array.from({ length: 12 }, (_, i) => ev('agente_inicio', `t${i + 1}`, 'revisor')));
+  const m = calcularMetricas(evs);
+  assert.equal(m.revisor.amostra, 12);
+  assert.equal(m.revisor.escapes, null);
+  assert.equal(m.revisor.score, null);
+  assert.equal(m.revisor.nivel, null);
+  assert.equal(m.gerente.escapes, null);
+  assert.equal(m.gerente.nivel, null);
+  // com votos, o checador passa a ter nível pelos votos
+  const v = calcularMetricas([...evs, ev('licao_usada', null, 'revisor', { util: true })]);
+  assert.equal(v.revisor.score, 1);
+  assert.equal(m.dev.escapes, 0);
 });
