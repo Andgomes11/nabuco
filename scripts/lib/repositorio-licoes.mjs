@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { nabucoHome, dirProjeto, ehPastaGlobal } from './caminhos.mjs';
 import { PAPEIS_CEREBRO } from './constantes.mjs';
@@ -23,9 +23,12 @@ export function arquivoMorto(papel) {
 export function lerArquivo(arq) {
   return arq && existsSync(arq) ? readFileSync(arq, 'utf8') : '';
 }
+// Escrita atômica (tmp + rename, como json.mjs): uma queda no meio nunca trunca o arquivo de lições.
 export function gravarArquivo(arq, texto) {
   mkdirSync(dirname(arq), { recursive: true });
-  writeFileSync(arq, texto);
+  const tmp = arq + '.tmp';
+  writeFileSync(tmp, texto);
+  renameSync(tmp, arq);
 }
 
 // Blocos de um papel num escopo, com o escopo real (o do arquivo) sobrescrevendo o declarado.

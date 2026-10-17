@@ -378,3 +378,11 @@ test('commit da home já leva a linha do histórico do próprio comando (achado 
   assert.equal(run(['licao-editar', '--id', 'dev-0003', '--escopo', 'global']).status, 0); assert.equal(limpa(), '');
   assert.equal(run(['aposentar', '--id', 'dev-0002', '--motivo=x']).status, 0); assert.equal(limpa(), '');
 });
+
+test('gravarArquivo é atômico: sobrescreve e não deixa .tmp (achado final #5)', async () => {
+  const { gravarArquivo } = await import('../scripts/lib/repositorio-licoes.mjs');
+  const a = join(base, 'x', 'dev.md');
+  gravarArquivo(a, 'um\n'); gravarArquivo(a, 'dois\n');
+  assert.equal(readFileSync(a, 'utf8'), 'dois\n');
+  assert.ok(!existsSync(a + '.tmp'));
+});
