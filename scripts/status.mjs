@@ -32,7 +32,10 @@ if (dif.length) aviso(`agentes gerados desatualizados: ${dif.join(', ')}`);
 const home = nabucoHome();
 let config = null;
 if (!existsSync(join(home, 'config.json'))) aviso(`${home} não configurado — rode o setup (/nabuco:setup ou $setup)`);
-else { config = lerJson(join(home, 'config.json')); ok(`pasta do nabuco: ${home}`); }
+else {
+  try { config = lerJson(join(home, 'config.json')); ok(`pasta do nabuco: ${home}`); }
+  catch (e) { aviso(`config.json ilegível (${e.message}); usando os padrões`); }
+}
 
 const destCodex = join(codexHome(), 'agents');
 const tomls = readdirSync(join(RAIZ, 'codex-agents')).filter(f => f.endsWith('.toml'));

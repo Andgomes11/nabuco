@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 
 export function lerJson(caminho) {
-  return JSON.parse(readFileSync(caminho, 'utf8').replace(/^﻿/, ''));
+  return JSON.parse(readFileSync(caminho, 'utf8').replace(/^\uFEFF/, ''));
 }
 
 export function escreverJson(caminho, dados) {

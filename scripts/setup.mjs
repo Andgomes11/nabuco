@@ -37,7 +37,10 @@ if (!existsSync(join(home, '.git'))) {
   else aviso(`git não disponível; ${home} ficará sem versionamento`);
 } else ok(`pasta do nabuco: ${home}`);
 const arqConfig = join(home, 'config.json');
-const config = existsSync(arqConfig) ? lerJson(arqConfig) : { versao: 1, checadores_locais: false };
+let config = { versao: 1, checadores_locais: false };
+if (existsSync(arqConfig)) {
+  try { config = lerJson(arqConfig); } catch (e) { aviso(`config.json ilegível (${e.message}); usando os padrões`); }
+}
 
 // 3. build
 const { arquivos, erros } = construir(RAIZ);
@@ -72,4 +75,5 @@ if (v['checadores-locais']) {
 }
 
 escreverJson(arqConfig, config);
+console.log('ℹ️ dica: adicione `.nabuco/` ao .gitignore do projeto se não quiser versionar as tarefas');
 console.log('\nSetup concluído.');

@@ -34,9 +34,9 @@ function inicioCorrespondente(projeto, agentId) {
 
 function modoHook() {
   let payload = {};
-  try { payload = JSON.parse(readFileSync(0, 'utf8') || '{}'); } catch { payload = {}; }
+  try { payload = JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { payload = {}; }
+  if (typeof payload !== 'object' || !Object.hasOwn(MAPA, payload.hook_event_name)) return;
   const tipo = MAPA[payload.hook_event_name];
-  if (!tipo) return;
   const projeto = acharProjeto(payload.cwd || process.cwd());
   const harness = detectarHarness(payload);
   const papel = normalizarPapel(payload.agent_type);

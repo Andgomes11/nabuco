@@ -67,6 +67,16 @@ test('hook: payloads incompletos, vazios ou inválidos nunca quebram', () => {
   assert.equal(semId.dados.duracao_ms, undefined);
 });
 
+test('hook: hook_event_name herdado de Object.prototype ou payload null não registra nada', () => {
+  for (const input of [JSON.stringify({ hook_event_name: 'constructor' }), JSON.stringify({ hook_event_name: 'toString' }), 'null']) {
+    const r = run(['--hook'], input);
+    assert.equal(r.status, 0, input);
+    assert.equal(r.stdout, '');
+    assert.equal(r.stderr, '', input);
+  }
+  assert.deepEqual(hist(), []);
+});
+
 test('hook: agente que não é do nabuco é registrado sem papel', () => {
   run(['--hook'], JSON.stringify({ hook_event_name: 'SubagentStart', agent_type: 'Explore', agent_id: 'z' }));
   const [e] = hist();

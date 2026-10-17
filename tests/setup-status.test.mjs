@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,20 @@ test('setup: cria home com git e config; Codex auto sem pasta não instala', () 
   assert.ok(!existsSync(join(base, 'codex', 'agents')));
   assert.match(r.stdout, /✅ configuração dos funcionários válida/);
   assert.match(r.stdout, /Codex não encontrado/);
+  assert.match(r.stdout, /ℹ️ .*adicione `\.nabuco\/` ao \.gitignore do projeto/);
+});
+
+test('setup e status: config.json corrompido → avisa e segue com padrões', () => {
+  mkdirSync(join(base, 'nabuco'), { recursive: true });
+  writeFileSync(join(base, 'nabuco', 'config.json'), '{quebrado');
+  const s = run('status.mjs');
+  assert.equal(s.status, 0, s.stderr);
+  assert.match(s.stdout, /⚠️ config\.json ilegível \(/);
+  const r = run('setup.mjs');
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /⚠️ config\.json ilegível \(/);
+  assert.match(r.stdout, /Setup concluído/);
+  assert.deepEqual(JSON.parse(readFileSync(join(base, 'nabuco', 'config.json'), 'utf8')), { versao: 1, checadores_locais: false });
 });
 
 test('setup --codex sim instala os 9 TOMLs; rodar de novo é idempotente', () => {

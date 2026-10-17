@@ -1,5 +1,5 @@
 export function parseFrontmatter(texto) {
-  const t = texto.replace(/^﻿/, '').replace(/\r\n/g, '\n');
+  const t = texto.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
   if (!t.startsWith('---\n')) return { dados: {}, corpo: t };
   const fim = t.indexOf('\n---', 3);
   if (fim === -1) throw new Error('frontmatter sem fechamento (---)');

@@ -15,7 +15,7 @@ test('json: escreve e lê, tolera BOM', () => {
   escreverJson(f, { x: 1 });
   assert.deepEqual(lerJson(f), { x: 1 });
   assert.ok(readFileSync(f, 'utf8').endsWith('\n'));
-  writeFileSync(f, '﻿{"y":2}');
+  writeFileSync(f, '\uFEFF{"y":2}');
   assert.deepEqual(lerJson(f), { y: 2 });
   rmSync(d, { recursive: true, force: true });
 });
