@@ -1,10 +1,22 @@
 // Painel do nabuco: monitores ao vivo (SSE) e dossiê por funcionário. Somente leitura.
 // a chave vem da URL e fica só em memória; toda requisição a leva, inclusive o import do modelo
 const CHAVE = new URLSearchParams(location.search).get('k') ?? '';
+// sem o modelo não há painel: avisa em vez de ficar em "carregando…"
+let modelo;
+try { modelo = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`); } catch (erro) {
+  const caixa = document.getElementById('erro-geral');
+  caixa.textContent = `não consegui carregar o painel (${erro?.message ?? erro}). O servidor foi encerrado? Reabra pelo endereço impresso pelo /nabuco:painel.`;
+  caixa.hidden = false;
+  document.getElementById('tarefa').textContent = '—';
+  document.getElementById('conexao').dataset.estado = 'desconectado';
+  document.getElementById('conexao-texto').textContent = 'falha ao carregar';
+  document.getElementById('grade').setAttribute('aria-busy', 'false');
+  throw erro;
+}
 const {
   velocidadeChuva, corDoEstado, rotuloEstado, rotuloNivel, formatarAtributo, formatarIndicador,
   seta, urlAvatar, urlFontes, resumoGate, INDICADORES, ATRIBUTOS,
-} = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`);
+} = modelo;
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
 
 const $ = id => document.getElementById(id);
@@ -189,8 +201,10 @@ function silhueta() {
   return svg;
 }
 // preenche o quadro do retrato; silhueta quando não há imagem ou ela falha
+const avataresFalhos = new Set(); // URL que falhou não é pedida de novo a cada estado
 function pintarRetrato(alvo, f) {
-  const url = urlAvatar(f, CHAVE);
+  const u = urlAvatar(f, CHAVE);
+  const url = u && !avataresFalhos.has(u) ? u : null;
   alvo.classList.toggle('cinza', Boolean(f.cinza));
   const atual = alvo.firstElementChild;
   if (url && atual?.tagName === 'IMG' && atual.dataset.url === url) return;
@@ -201,7 +215,7 @@ function pintarRetrato(alvo, f) {
   img.alt = '';
   img.decoding = 'async';
   img.dataset.url = url;
-  img.addEventListener('error', () => { if (img.isConnected) img.replaceWith(silhueta()); }, { once: true });
+  img.addEventListener('error', () => { avataresFalhos.add(url); if (img.isConnected) img.replaceWith(silhueta()); }, { once: true });
   img.src = url;
   alvo.append(img);
 }
@@ -318,25 +332,37 @@ function aplicarEstado(e) {
   if (dossieAberto && versaoAnterior !== undefined && e.versao !== dossieAberto.versao) $('d-aviso').hidden = false;
 }
 
+const SERVIDOR_FORA = 'o servidor foi encerrado? reabra pelo endereço impresso pelo /nabuco:painel';
+function avisarServidorFora() {
+  const caixa = $('erro-geral');
+  caixa.textContent = SERVIDOR_FORA;
+  caixa.hidden = false;
+  definirConexao('desconectado', 'sem servidor');
+}
+
 async function recarregarEstado() {
   const r = await fetch(comChave('/api/estado'));
+  if (r.status === 403) avisarServidorFora(); // chave de outro processo: este servidor não é mais o da página
   if (!r.ok) throw new Error(`estado: HTTP ${r.status}`);
   aplicarEstado(await r.json());
 }
 
 // ---------- SSE ----------
 let fonte = null;
+let falhas = 0; // erros seguidos do canal ao vivo; zera quando conecta
+const MAX_FALHAS = 3;
 function conectar() {
   fonte?.close();
   fonte = new EventSource(comChave('/api/eventos'));
-  fonte.addEventListener('open', () => definirConexao('ao-vivo', textoAoVivo()));
+  fonte.addEventListener('open', () => { falhas = 0; definirConexao('ao-vivo', textoAoVivo()); });
   fonte.addEventListener('estado', ev => {
     try { aplicarEstado(JSON.parse(ev.data)); } catch { /* evento malformado: espera o próximo */ }
     definirConexao('ao-vivo', textoAoVivo());
   });
   fonte.addEventListener('error', () => {
     // CONNECTING: o navegador já está tentando de novo; CLOSED: recria em 5 s
-    definirConexao('desconectado', 'desconectado · tentando reconectar');
+    if (++falhas >= MAX_FALHAS) avisarServidorFora();
+    else definirConexao('desconectado', 'desconectado · tentando reconectar');
     if (fonte.readyState === EventSource.CLOSED) setTimeout(conectar, 5000);
   });
 }
@@ -618,6 +644,7 @@ async function iniciar() {
   }
   try { await recarregarEstado(); } catch (erro) {
     const caixa = $('erro-geral');
+    if (caixa.textContent === SERVIDOR_FORA && !caixa.hidden) { conectar(); return; }
     caixa.textContent = `não consegui ler o estado do painel (${erro.message}). Tentando pelo canal ao vivo…`;
     caixa.hidden = false;
   }
