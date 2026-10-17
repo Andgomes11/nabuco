@@ -49,13 +49,38 @@ test('substituirBloco: preserva linha livre dentro do bloco e CRLF', () => {
   assert.equal(r, T.replace('👎 1', '👎 2'));
 });
 
-test('substituirBloco null remove só o bloco', () => {
+test('substituirBloco null remove só o bloco e preserva texto livre', () => {
   const b1 = lerLicoes(T).blocos[0];
+  assert.equal(b1.bruto, B1);
   const r = substituirBloco(T, 'dev-0001', null);
-  assert.equal(r, T.replace(b1.bruto, ''));
-  const { blocos } = lerLicoes(r);
-  assert.deepEqual(blocos.map(x => x.id), ['dev-0002']);
+  assert.equal(r, T.replace(B1, ''));
+  assert.ok(r.includes(LIVRE));
+  assert.deepEqual(lerLicoes(r).blocos.map(x => x.id), ['dev-0002']);
   assert.equal(substituirBloco(T, 'dev-9999', null), T);
+  const comRodape = T + 'rodapé do usuário\r\n';
+  const r2 = substituirBloco(comRodape, 'dev-0002', null);
+  assert.equal(r2, comRodape.replace(B2, ''));
+  assert.ok(r2.endsWith('rodapé do usuário\r\n'));
+});
+
+test('seções que não são lições ficam intactas e fora de blocos', () => {
+  const t = '# Lições — dev\n\n## Notas\ntexto meu\n\n## dev-0001 · a\n- gatilho: g\n\n## Outra\nx\n';
+  const { blocos } = lerLicoes(t);
+  assert.deepEqual(blocos.map(x => x.id), ['dev-0001']);
+  assert.equal(substituirBloco(t, 'dev-0001', null), '# Lições — dev\n\n## Notas\ntexto meu\n\n## Outra\nx\n');
+});
+
+test('título com outro separador ou sem título', () => {
+  for (const [h, tit] of [['## dev-0001 - um', 'um'], ['## dev-0001 — um', 'um'], ['## dev-0001: um', 'um'], ['## dev-0001 – um', 'um'], ['## dev-0001', '']]) {
+    const [b] = lerLicoes(h + '\n- gatilho: g\n').blocos;
+    assert.equal(b.id, 'dev-0001', h); assert.equal(b.titulo, tit, h);
+  }
+});
+
+test('campos em NFD são reconhecidos', () => {
+  const t = ('## dev-0001 · a\n- gatilho: g\n- faça: f\n- por quê: p\n- evidência: x · escopo: projeto\n').normalize('NFD');
+  const [b] = lerLicoes(t).blocos;
+  assert.deepEqual([b.faca, b.porque, b.escopo], ['f', 'p', 'projeto']);
 });
 
 test('bloco sem 👍/👎 não lança', () => {

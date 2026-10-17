@@ -1,13 +1,14 @@
 const CAMPOS = /^- (gatilho|expectativa|faça|por quê|evidência|regra|aposentada):\s?(.*)$/;
 const VOTOS = /^- 👍\s*(\d+)\s+👎\s*(\d+)(?:\s*·\s*última:\s*(\S*))?\s*$/;
-const TITULO = /^##\s+(\S+)(?:\s*·\s*(.*))?$/;
+const TITULO = /^##\s+([a-z]+-\d{4,})(?![\w-])\s*(?:[·\-—–:]\s*)?(.*)$/;
 
 const semBom = t => String(t ?? '').replace(/^﻿/, '');
 const linhas = t => t.split(/\r?\n/);
 
 function parseBloco(bruto) {
   const b = { id: '', titulo: '', gatilho: '', expectativa: '', faca: '', porque: '', evidencia: [], escopo: 'global', positivos: 0, negativos: 0, ultima: null, regra: null, aposentada: null, bruto };
-  for (const l of linhas(bruto)) {
+  for (const bl of linhas(bruto)) {
+    const l = bl.normalize('NFC');
     const t = l.match(TITULO);
     if (t && !b.id) { b.id = t[1]; b.titulo = (t[2] ?? '').trim(); continue; }
     const v = l.match(VOTOS);
@@ -37,12 +38,26 @@ function parseBloco(bruto) {
 
 function separar(texto) {
   const t = semBom(texto);
-  const idx = [];
+  const cab = [];
   const re = /^## /gm;
   let m;
-  while ((m = re.exec(t))) idx.push(m.index);
-  const cabecalho = t.slice(0, idx.length ? idx[0] : t.length);
-  const blocos = idx.map((ini, i) => parseBloco(t.slice(ini, i + 1 < idx.length ? idx[i + 1] : t.length)));
+  while ((m = re.exec(t))) cab.push(m.index);
+  const cabecalho = t.slice(0, cab.length ? cab[0] : t.length);
+  const blocos = [];
+  cab.forEach((ini, i) => {
+    const fimRegiao = i + 1 < cab.length ? cab[i + 1] : t.length;
+    const regiao = t.slice(ini, fimRegiao);
+    if (!TITULO.test(regiao.split(/\r?\n/)[0].normalize('NFC'))) return;
+    // o bloco vai até a última linha reconhecida e as linhas em branco seguintes
+    let pos = 0, ultimaConhecida = 0;
+    for (const lin of regiao.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
+      pos += lin.length;
+      if (ehConhecida(lin.replace(/\r?\n$/, '').normalize('NFC'))) ultimaConhecida = pos;
+    }
+    const resto = regiao.slice(ultimaConhecida);
+    const fimBloco = ultimaConhecida + resto.match(/^(?:[ \t]*\r?\n)*/)[0].length;
+    blocos.push(parseBloco(regiao.slice(0, fimBloco)));
+  });
   return { cabecalho, blocos };
 }
 
@@ -81,7 +96,7 @@ export function substituirBloco(texto, id, novo) {
   const eol = alvo.bruto.includes('\r\n') ? '\r\n' : '\n';
   const corpo = alvo.bruto.trimEnd();
   const cauda = alvo.bruto.slice(corpo.length);
-  const extras = linhas(corpo).filter(l => l.trim() !== '' && !ehConhecida(l));
+  const extras = linhas(corpo).filter(l => l.trim() !== '' && !ehConhecida(l.normalize('NFC')));
   const nova = [...linhasDoBloco(novo), ...extras].join(eol) + cauda;
   return texto.slice(0, pos) + nova + texto.slice(fim);
 }
