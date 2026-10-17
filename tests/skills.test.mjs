@@ -26,9 +26,11 @@ for (const s of skills) {
 
 test('tarefa: cobre os comandos do CLI e as regras-chave', () => {
   const t = readFileSync(join(RAIZ, 'skills', 'tarefa', 'SKILL.md'), 'utf8');
-  for (const c of ['nova', 'criterio-add', 'aprovar', 'criterio --id', 'fase aguardando_usuario', 'fase checando', 'concluir', 'abandonar', 'status', 'log --texto']) {
+  for (const c of ['nova', 'criterio-add', 'aprovar', 'criterio --id', 'fase aguardando_usuario', 'fase checando', 'concluir', 'abandonar', 'status', 'log --texto=']) {
     assert.ok(t.includes(c), `faltou "${c}"`);
   }
+  assert.ok(t.includes('--evidencia="'), 'evidência deve usar a forma com =');
+  assert.match(t, /gate_liberado/);
   assert.match(t, /nabuco:<papel>/);
   assert.match(t, /nabuco-<papel>/);
   assert.match(t, /checadores_locais/);
