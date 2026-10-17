@@ -85,3 +85,171 @@ test('similares', () => {
 test('comando desconhecido → exit 2', () => {
   assert.equal(run(['xyz']).status, 2);
 });
+
+// ---------- lições ----------
+const licao = (o = {}) => ({ papel: 'dev', titulo: 'Limpe o cache antes de rebuildar', gatilho: 'build falha com módulo desatualizado', expectativa: 'após limpar, build passa', faca: 'apagar node_modules/.cache', porque: 'cache guarda versão velha', evidencia: ['casos/dev/2026-10-cache.md'], escopo: 'global', ...o });
+const gitHome = () => {
+  mkdirSync(home, { recursive: true });
+  spawnSync('git', ['init', '-q', home]);
+  for (const [k, v] of [['user.email', 't@t'], ['user.name', 'T'], ['commit.gpgsign', 'false']]) spawnSync('git', ['-C', home, 'config', k, v]);
+};
+const logHome = () => { const r = spawnSync('git', ['-C', home, 'log', '--oneline'], { encoding: 'utf8' }); return r.status === 0 ? r.stdout.trim().split('\n').filter(Boolean) : []; };
+const globalDev = () => join(home, 'licoes', 'dev.md');
+let nLic = 0;
+const addLicao = (o, extra = []) => run(['licao-add', '--de', arq(`l${nLic++}.json`, licao(o)), ...extra]);
+const distintas = i => ({ titulo: `Assunto${i} alfa${i}`, gatilho: `beta${i} gama${i} delta${i}` });
+
+test('licao-add imprime dev-0001, grava cabeçalho e bloco, registra evento e commita', () => {
+  gitHome();
+  const r = addLicao();
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'dev-0001');
+  const t = readFileSync(globalDev(), 'utf8');
+  assert.match(t, /^# Lições — dev\n/);
+  assert.match(t, /^## dev-0001 · Limpe o cache antes de rebuildar$/m);
+  assert.match(t, /^- 👍 0  👎 0 · última: \d{4}-\d{2}-\d{2}$/m);
+  assert.match(t, /^- evidência: casos\/dev\/2026-10-cache\.md · escopo: global$/m);
+  const e = hist().find(x => x.tipo === 'licao_criada');
+  assert.equal(e.papel, 'dev'); assert.deepEqual(e.dados, { id: 'dev-0001', escopo: 'global' });
+  assert.match(logHome()[0], /licao: criar dev-0001/);
+});
+
+test('licao-add sem evidência, papel ou escopo inválido → exit 1 e nada gravado', () => {
+  assert.equal(addLicao({ evidencia: [] }).status, 1);
+  assert.equal(addLicao({ papel: 'chefe' }).status, 1);
+  assert.equal(addLicao({ escopo: 'mundo' }).status, 1);
+  assert.ok(!existsSync(globalDev()));
+});
+
+test('licao-add duplicata → exit 1 citando o id; --forcar cria dev-0002', () => {
+  addLicao();
+  const dup = addLicao({ titulo: 'Limpe o cache antes de rebuildar!' });
+  assert.equal(dup.status, 1);
+  assert.match(dup.stdout + dup.stderr, /dev-0001/);
+  const f = addLicao({ titulo: 'Limpe o cache antes de rebuildar!' }, ['--forcar']);
+  assert.equal(f.status, 0, f.stderr);
+  assert.equal(f.stdout.trim(), 'dev-0002');
+});
+
+test('limite de 30 ativas: a 31ª é recusada; promovidas não contam', () => {
+  for (let i = 0; i < 30; i++) assert.equal(addLicao(distintas(i)).status, 0);
+  const r = addLicao(distintas(30));
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /higiene/);
+  assert.equal(run(['promover', '--id', 'dev-0001', '--regra=lint no-cache']).status, 0);
+  const ok = addLicao(distintas(31));
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.equal(ok.stdout.trim(), 'dev-0031');
+});
+
+test('voto incrementa e é delta: o resto do arquivo fica byte a byte igual', () => {
+  addLicao();
+  addLicao(distintas(1));
+  writeFileSync(globalDev(), readFileSync(globalDev(), 'utf8') + '\nTexto livre do usuário.\n');
+  const antes = readFileSync(globalDev(), 'utf8');
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  const r = run(['voto', '--id', 'dev-0001', '--util', 'nao']);
+  assert.equal(r.status, 0, r.stderr);
+  const depois = readFileSync(globalDev(), 'utf8');
+  const esperado = antes.replace(/- 👍 0  👎 0 · última: (\S+)/, (_, d) => `- 👍 2  👎 1 · última: ${d}`);
+  assert.equal(depois, esperado);
+  const usos = hist().filter(x => x.tipo === 'licao_usada');
+  assert.equal(usos.length, 3);
+  assert.equal(usos[0].papel, 'dev');
+  assert.deepEqual(usos.map(u => u.dados.util), [true, true, false]);
+  assert.equal(run(['voto', '--id', 'dev-0001', '--util', 'talvez']).status, 2);
+});
+
+test('aposentar → some de licoes e aparece no arquivo morto', () => {
+  addLicao(); addLicao(distintas(1));
+  const r = run(['aposentar', '--id', 'dev-0001', '--motivo=obsoleta']);
+  assert.equal(r.status, 0, r.stderr);
+  const l = JSON.parse(run(['licoes']).stdout);
+  assert.deepEqual(l.map(x => x.id), ['dev-0002']);
+  const morto = readFileSync(join(home, 'licoes', 'arquivo', 'dev.md'), 'utf8');
+  assert.match(morto, /^## dev-0001 · /m);
+  assert.match(morto, /^- aposentada: \d{4}-\d{2}-\d{2} · obsoleta$/m);
+  assert.doesNotMatch(readFileSync(globalDev(), 'utf8'), /dev-0001/);
+  assert.ok(hist().some(x => x.tipo === 'licao_aposentada' && x.dados.id === 'dev-0001'));
+  // id do arquivo morto não é reutilizado
+  assert.equal(addLicao(distintas(2)).stdout.trim(), 'dev-0003');
+});
+
+test('promover → licoes não lista; --todas lista com regra', () => {
+  addLicao();
+  const r = run(['promover', '--id', 'dev-0001', '--regra=hook pre-commit']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(JSON.parse(run(['licoes']).stdout), []);
+  const todas = JSON.parse(run(['licoes', '--todas']).stdout);
+  assert.equal(todas.length, 1); assert.equal(todas[0].regra, 'hook pre-commit'); assert.equal(todas[0].escopo, 'global');
+  assert.equal(todas[0].bruto, undefined);
+  const e = hist().find(x => x.tipo === 'licao_promovida');
+  assert.deepEqual(e.dados, { id: 'dev-0001', regra: 'hook pre-commit' });
+});
+
+test('licoes filtra por papel e marca escopo', () => {
+  addLicao();
+  addLicao({ papel: 'tester', escopo: 'projeto' });
+  const l = JSON.parse(run(['licoes']).stdout);
+  assert.deepEqual(l.map(x => [x.id, x.escopo]).sort(), [['dev-0001', 'global'], ['tester-0001', 'projeto']]);
+  assert.deepEqual(JSON.parse(run(['licoes', '--papel', 'tester']).stdout).map(x => x.id), ['tester-0001']);
+  assert.equal(run(['licoes', '--papel', 'chefe']).status, 2);
+});
+
+test('escopo projeto não commita; mover para global com id ocupado renumera (Review Focus 5)', () => {
+  gitHome();
+  const g = addLicao(distintas(1));
+  assert.equal(g.stdout.trim(), 'dev-0001');
+  const commitsAntes = logHome().length;
+  // lição de projeto numerada independentemente (outro projeto / antes da global)
+  const arqProj = join(proj, '.nabuco', 'licoes', 'dev.md');
+  mkdirSync(dirname(arqProj), { recursive: true });
+  writeFileSync(arqProj, '# Lições — dev\n\n## dev-0001 · Rode o lint antes\n- gatilho: lint quebra no CI\n- expectativa: x\n- faça: npm run lint\nnota do usuário\n- por quê: y\n- evidência: casos/dev/a.md · escopo: projeto\n- 👍 3  👎 0 · última: 2026-01-01\n\nTexto livre do projeto.\n');
+  const p = addLicao({ ...distintas(2), escopo: 'projeto' });
+  assert.equal(p.status, 0, p.stderr);
+  assert.equal(p.stdout.trim(), 'dev-0002');
+  assert.match(readFileSync(arqProj, 'utf8'), /^## dev-0002 · /m);
+  assert.equal(logHome().length, commitsAntes);
+  const m = run(['licao-editar', '--id', 'dev-0001', '--escopo', 'global']);
+  assert.equal(m.status, 0, m.stderr);
+  assert.equal(m.stdout.trim(), 'dev-0003');
+  const gt = readFileSync(globalDev(), 'utf8');
+  assert.match(gt, /^## dev-0001 · Assunto1/m);
+  assert.match(gt, /^## dev-0003 · Rode o lint antes$/m);
+  assert.match(gt, /^- 👍 3  👎 0 · última: 2026-01-01$/m);
+  assert.match(gt, /evidência: casos\/dev\/a\.md · escopo: global/);
+  assert.match(gt, /^nota do usuário$/m);
+  const pt = readFileSync(arqProj, 'utf8');
+  assert.doesNotMatch(pt, /Rode o lint|nota do usuário/);
+  assert.match(pt, /^Texto livre do projeto\.$/m);
+  assert.match(pt, /^## dev-0002 · /m);
+  const e = hist().filter(x => x.tipo === 'licao_editada').at(-1);
+  assert.equal(e.dados.id, 'dev-0003'); assert.equal(e.dados.id_anterior, 'dev-0001');
+  assert.ok(e.dados.campos.includes('escopo'));
+  assert.equal(logHome().length, commitsAntes + 1);
+});
+
+test('licao-editar mescla campos como delta e licao-reforcar acrescenta evidência', () => {
+  addLicao(); addLicao(distintas(1));
+  const antes = readFileSync(globalDev(), 'utf8');
+  const r = run(['licao-editar', '--id', 'dev-0001', '--de', arq('ed.json', { faca: 'rodar npm run clean' })]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(readFileSync(globalDev(), 'utf8'), antes.replace(/- faça: apagar node_modules\/\.cache/, '- faça: rodar npm run clean'));
+  assert.deepEqual(hist().filter(x => x.tipo === 'licao_editada').at(-1).dados, { id: 'dev-0001', campos: ['faca'] });
+  assert.equal(run(['licao-editar', '--id', 'dev-0001', '--de', arq('ed2.json', { positivos: 99 })]).status, 1);
+  const f = run(['licao-reforcar', '--id', 'dev-0001', '--caso', 'casos/dev/2026-10-novo.md']);
+  assert.equal(f.status, 0, f.stderr);
+  const b = JSON.parse(run(['licoes']).stdout).find(x => x.id === 'dev-0001');
+  assert.deepEqual(b.evidencia, ['casos/dev/2026-10-cache.md', 'casos/dev/2026-10-novo.md']);
+  assert.deepEqual(hist().filter(x => x.tipo === 'licao_editada').at(-1).dados, { id: 'dev-0001', campos: ['evidencia'] });
+});
+
+test('id inexistente → exit 1 em todos os comandos', () => {
+  addLicao();
+  for (const args of [['voto', '--id', 'dev-9999', '--util', 'sim'], ['aposentar', '--id', 'dev-9999', '--motivo=x'], ['promover', '--id', 'dev-9999', '--regra=x'], ['licao-reforcar', '--id', 'dev-9999', '--caso', 'c.md'], ['licao-editar', '--id', 'dev-9999', '--escopo', 'global'], ['voto', '--id', 'chefe-0001', '--util', 'sim']]) {
+    const r = run(args);
+    assert.equal(r.status, 1, args.join(' '));
+    assert.match(r.stderr, /lição "[a-z]+-\d+" não encontrada/);
+  }
+});

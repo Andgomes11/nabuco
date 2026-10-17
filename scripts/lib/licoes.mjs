@@ -101,8 +101,9 @@ export function substituirBloco(texto, id, novo) {
   return texto.slice(0, pos) + nova + texto.slice(fim);
 }
 
+// `bloco` pode ser um Bloco ou o texto já serializado de um bloco (ex.: movido de outro arquivo).
 export function acrescentarBloco(texto, papel, bloco) {
-  const ser = serializarBloco(bloco);
+  const ser = typeof bloco === 'string' ? bloco.replace(/\r\n/g, '\n').trimEnd() + '\n' : serializarBloco(bloco);
   if (!String(texto ?? '').trim()) return `# Lições — ${papel}\n\n${ser}`;
   const eol = texto.includes('\r\n') ? '\r\n' : '\n';
   let base = texto;
