@@ -82,3 +82,23 @@ test('hook: agente que não é do nabuco é registrado sem papel', () => {
   const [e] = hist();
   assert.equal(e.papel, null); assert.equal(e.dados.agente, 'Explore');
 });
+
+test('CLI --tarefa: correcao_usuario depois de concluir conta como escape e entra nos sinais (achado final #2)', () => {
+  const CEREBRO = join(RAIZ, 'scripts', 'cerebro.mjs');
+  const T = (...a) => spawnSync(process.execPath, [TAREFA, ...a], { cwd: proj, encoding: 'utf8', env: env() });
+  const C = (...a) => spawnSync(process.execPath, [CEREBRO, ...a], { cwd: proj, encoding: 'utf8', env: env() });
+  const nome = T('nova', '--slug', 'login', '--tamanho', 'media', '--tipo', 'bug').stdout.trim().split(/[\\/]/).pop();
+  T('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  T('criterio', '--id', 'c1', '--status', 'passou', '--evidencia', 'ok');
+  assert.equal(T('concluir').status, 0);
+  const r = run(['correcao_usuario', '--papel', 'dev', '--tarefa', nome, '--dados={"apos_pronto":true,"resumo":"x"}']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(hist().at(-1).tarefa, nome);
+  assert.equal(JSON.parse(C('metricas', '--papel', 'dev', '--json').stdout).dev.escapes, 1);
+  const s = JSON.parse(C('sinais', '--tarefa', nome).stdout);
+  assert.deepEqual(s.correcoes_usuario, [{ papel: 'dev', dados: { apos_pronto: true, resumo: 'x' } }]);
+  for (const ruim of ['../x', 'a/b', 'a\\b', '..', '']) assert.equal(run(['correcao_usuario', '--tarefa', ruim]).status, 2, ruim);
+  // tarefa que não existe mais: o evento vai só para o histórico, com o nome informado
+  assert.equal(run(['correcao_usuario', '--tarefa', 'sumiu']).status, 0);
+  assert.equal(hist().at(-1).tarefa, 'sumiu');
+});

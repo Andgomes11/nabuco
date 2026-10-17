@@ -1,16 +1,20 @@
 import { homedir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, basename } from 'node:path';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 
 export function nabucoHome() {
   return process.env.NABUCO_HOME || join(homedir(), '.nabuco');
 }
 export function dirProjeto(projeto) { return join(projeto, '.nabuco'); }
+export function dirTarefas(projeto) { return join(projeto, '.nabuco', 'tarefas'); }
 
 // true se `p` é a pasta global do nabuco (NABUCO_HOME ou ~/.nabuco); no Windows ignora caixa.
 const normalizar = p => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
 export const ehPastaGlobal = p => [nabucoHome(), join(homedir(), '.nabuco')].some(g => normalizar(g) === normalizar(p));
-export function dirTarefas(projeto) { return join(projeto, '.nabuco', 'tarefas'); }
+
+// Nome de tarefa = só o nome de uma pasta em .nabuco/tarefas (sem separador de caminho, sem . ou ..).
+export const nomeTarefaValido = n => typeof n === 'string' && n !== '' && n === n.trim()
+  && n !== '.' && n !== '..' && !/[\\/]/.test(n) && basename(n) === n;
 
 // Sobe a partir de `inicio` até achar um projeto: a primeira pasta com `.nabuco/`
 // (exceto a pasta global do usuário, ~/.nabuco) ou com `.git/` (fronteira do repositório).

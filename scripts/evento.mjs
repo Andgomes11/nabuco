@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { acharProjeto, lerAtiva } from './lib/caminhos.mjs';
+import { acharProjeto, lerAtiva, nomeTarefaValido } from './lib/caminhos.mjs';
 import { registrar, detectarHarness } from './lib/eventos.mjs';
 import { carregarModelos, configDe } from './lib/modelos.mjs';
 import { PAPEIS } from './lib/constantes.mjs';
@@ -53,13 +53,14 @@ function modoHook() {
 }
 
 function modoCli(argv) {
-  const { values: v, positionals: [tipo] } = parseArgs({ args: argv, options: { papel: { type: 'string' }, dados: { type: 'string' } }, allowPositionals: true });
-  if (!tipo) { console.error('uso: evento.mjs <tipo> [--papel P] [--dados JSON]'); process.exit(2); }
+  const { values: v, positionals: [tipo] } = parseArgs({ args: argv, options: { papel: { type: 'string' }, dados: { type: 'string' }, tarefa: { type: 'string' } }, allowPositionals: true });
+  if (!tipo) { console.error('uso: evento.mjs <tipo> [--papel P] [--dados JSON] [--tarefa NOME]'); process.exit(2); }
+  if (v.tarefa !== undefined && !nomeTarefaValido(v.tarefa)) { console.error('nabuco: --tarefa deve ser só o nome da pasta da tarefa (sem barra nem ..)'); process.exit(2); }
   let dados = {};
   if (v.dados) {
     try { dados = JSON.parse(v.dados); } catch { console.error('nabuco: --dados não é JSON válido'); process.exit(2); }
   }
-  registrar({ tipo, papel: v.papel ?? null, dados, projeto: acharProjeto(process.cwd()) });
+  registrar({ tipo, papel: v.papel ?? null, dados, projeto: acharProjeto(process.cwd()), tarefa: v.tarefa });
 }
 
 const executadoDireto = process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;

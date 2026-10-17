@@ -66,7 +66,7 @@ Depois do resumo, ofereça a retrospectiva (`/nabuco:retro` no Claude Code, `$re
 
 ## Sempre
 - Antes de fazer qualquer pergunta ao usuário durante a execução: `T fase aguardando_usuario --motivo="<pergunta>"`; ao retomar: `T fase executando`.
-- Quando o usuário apontar um problema depois de a tarefa estar pronta: `E correcao_usuario --papel <papel> --dados='{"apos_pronto":true,"resumo":"..."}'` (papel = quem entregou a parte com problema).
+- Quando o usuário apontar um problema depois de a tarefa estar pronta: `E correcao_usuario --papel <papel> --tarefa <nome da tarefa concluída> --dados='{"apos_pronto":true,"resumo":"..."}'` (papel = quem entregou a parte com problema; nome = a pasta em `.nabuco/tarefas/`, ex.: `2026-10-17-login` — sem `--tarefa` o evento não conta como escape, porque a tarefa já não está ativa).
 - Para desistir: `T abandonar --motivo="<por quê>"`.
 - Proibido para todo o time: tocar produção, push, deploy, commit sem pedido, dependência fora do plano aprovado.
 - Valores de texto livre sempre na forma `--flag="valor"` (valores que começam com `-` quebram a forma com espaço).
