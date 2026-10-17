@@ -48,7 +48,8 @@ export function tendencia(eventos, papel) {
 const equipamento = (modelos, harness, papel) => {
   const c = configDe(modelos, harness, papel);
   if (!c || typeof c !== 'object') return null;
-  return `${c.model ?? '(sessão)'}/${c.effort}`;
+  const modelo = c.model == null || c.model === 'inherit' ? '(sessão)' : c.model; // inherit = modelo da sessão
+  return `${modelo}/${c.effort}`;
 };
 
 const nomeArquivo = c => basename(String(c.arquivo ?? ''));

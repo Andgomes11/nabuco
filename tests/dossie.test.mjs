@@ -96,7 +96,7 @@ test('montarDossie: diário, lições, talentos, equipamento, métricas', () => 
 test('montarDossie: equipamento com modelo, inherit, ausente e gerente', () => {
   const eq = papel => montarDossie({ papel, eventos: [], home, projeto, modelos }).equipamento;
   assert.deepEqual(eq('revisor'), { claude: 'opus/high', codex: 'gpt-x/low' });
-  assert.equal(eq('docs').claude, 'inherit/medium');
+  assert.equal(eq('docs').claude, '(sessão)/medium');
   assert.equal(eq('docs').codex, null);
   const g = montarDossie({ papel: 'gerente', eventos: [], home, projeto, modelos });
   assert.deepEqual(g.equipamento, { claude: 'sessão', codex: 'sessão' });
