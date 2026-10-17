@@ -376,7 +376,10 @@ kbd {
   cursor: pointer;
   text-decoration: underline dashed var(--borda-forte);
   text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
+  /* o tracejado acompanha o número (em, não px): a área de toque cresce pelo min-height sem afastá-lo */
+  text-underline-offset: 0.15em;
+  line-height: 1.2;
+  vertical-align: baseline;
 }
 .num:hover { color: var(--verde); text-decoration-color: var(--verde); }
 .num[aria-expanded="true"] { text-decoration-style: solid; text-decoration-color: var(--verde); }
