@@ -138,3 +138,38 @@ test('checador não ganha nível só por participar: escapes só existe para esc
   assert.equal(v.revisor.score, 1);
   assert.equal(m.dev.escapes, 0);
 });
+
+// --- Fase 3: fontes de cada indicador (índices no array recebido) ---
+const semFontes = m => Object.fromEntries(Object.entries(m).map(([p, { fontes, ...resto }]) => [p, resto]));
+
+test('fontes: índices dos eventos que alimentaram cada indicador', () => {
+  const evs = [{}, ...tarefa(1), ...tarefa(2, { corrigida: true }), ev('caso_criado', null, 'dev', { turnos: 3 }), ev('agente_inicio', 't1', 'revisor'),
+    ev('licao_usada', null, 'dev', { util: true }), ev('licao_promovida', null, 'dev', { id: 'dev-0001' })];
+  // 0 {} · 1 inicio t1 · 2 fechada t1 · 3 inicio t2 · 4 rodada t2 · 5 fechada t2 · 6 caso · 7 revisor · 8 voto · 9 promovida
+  const m = calcularMetricas(evs, { fontes: true });
+  assert.deepEqual(m.dev.fontes.aceitacao_1a, [1, 3, 4]);
+  assert.deepEqual(m.dev.fontes.amostra, [1, 3, 4]);
+  assert.deepEqual(m.dev.fontes.recorrencia, [6]);
+  assert.deepEqual(m.dev.fontes.turnos_ate_causa, [6]);
+  assert.deepEqual(m.dev.fontes.pct_util, [8]);
+  assert.deepEqual(m.dev.fontes.promocoes, [9]);
+  assert.deepEqual(m.dev.fontes.escapes, []);
+  assert.deepEqual(m.revisor.fontes.amostra, [7]);
+  assert.deepEqual(m.revisor.fontes.aceitacao_1a, []);
+  assert.deepEqual(Object.keys(m.dev.fontes).sort(), ['aceitacao_1a', 'amostra', 'escapes', 'pct_util', 'promocoes', 'recorrencia', 'tentativas_ate_verde', 'turnos_ate_causa']);
+  // sem a opção: mesma saída de antes, sem `fontes`
+  const sem = calcularMetricas(evs);
+  assert.equal('fontes' in sem.dev, false);
+  assert.deepEqual(sem, semFontes(m));
+});
+
+test('fontes: só tarefas da janela entram; escapes e tentativas apontam os eventos contados', () => {
+  const evs = [...muitas(1, 31), ...tarefa(200, { falhas: 1 }), ev('correcao_usuario', 't200', 'dev', { apos_pronto: true })];
+  const m = calcularMetricas(evs, { fontes: true });
+  // 32 tarefas fechadas: t1 e t2 (índices 0..3) ficam fora da janela de 30
+  assert.ok(m.dev.fontes.amostra.every(i => i >= 4));
+  assert.equal(m.dev.fontes.amostra.length, 31); // 30 inícios + 1 correção
+  const iFalha = evs.findIndex(e => e.tipo === 'criterio');
+  assert.ok(m.dev.fontes.tentativas_ate_verde.includes(iFalha));
+  assert.deepEqual(m.dev.fontes.escapes, [evs.length - 1]);
+});
