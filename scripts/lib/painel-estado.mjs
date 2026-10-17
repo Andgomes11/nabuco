@@ -39,7 +39,9 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
       else if (tarefa && FASES_TRABALHO.has(fase) && evsTarefa.some(e => tempo(e) >= limite30)) estado = 'trabalhando';
       recentes5 = evsTarefa.filter(e => (e.papel === null || e.papel === 'gerente') && tempo(e) >= limite5).length;
     } else {
-      const meus = evs.filter(e => e.papel === papel);
+      // estado/atividade: só eventos deste projeto (ocupado em outro projeto não está trabalhando aqui);
+      // nível e métricas continuam globais (o funcionário é o mesmo em todos os projetos)
+      const meus = evs.filter(e => e.papel === papel && e.projeto === projeto);
       if (agenteAberto(meus) && meus.some(e => tempo(e) >= limite30)) estado = 'trabalhando';
       recentes5 = meus.filter(e => tempo(e) >= limite5).length;
     }

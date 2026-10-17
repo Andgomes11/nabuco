@@ -222,7 +222,7 @@ test('SSE: estado inicial, atualização com linha parcial, fechar() encerra', a
   await sse.esperar(() => true, 2000);
   assert.ok(sse.estados[0].funcionarios.every(f => f.estado === 'ocioso'));
   mkdirSync(home, { recursive: true });
-  const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'p', tarefa: 't', dados: { agent_id: 'a1' } };
+  const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'Meu projeto', tarefa: 't', dados: { agent_id: 'a1' } };
   appendFileSync(join(home, 'historico.jsonl'), JSON.stringify(ev) + '\n{"ts":"2026-10-17T00:00:00Z","tipo":"agen');
   await sse.esperar(e => e.funcionarios.find(f => f.papel === 'dev').estado === 'trabalhando', 2000);
   await srv.fechar();
@@ -239,7 +239,7 @@ test('SSE: cliente novo durante o debounce não impede o antigo de receber a mud
   mkdirSync(home, { recursive: true });
   const a = await abrirSSE();
   await a.esperar(() => true, 2000);
-  const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'p', tarefa: 't', dados: { agent_id: 'a1' } };
+  const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'Meu projeto', tarefa: 't', dados: { agent_id: 'a1' } };
   appendFileSync(join(home, 'historico.jsonl'), JSON.stringify(ev) + '\n');
   const b = await abrirSSE(); // conecta antes do debounce disparar e já vê o estado novo
   const trabalhando = e => e.funcionarios.find(f => f.papel === 'dev').estado === 'trabalhando';

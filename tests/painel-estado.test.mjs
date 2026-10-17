@@ -4,7 +4,7 @@ import { montarEstado, FUNCIONARIOS, NIVEL_NUM } from '../scripts/lib/painel-est
 
 const AGORA = Date.UTC(2026, 5, 1, 12, 0, 0);
 const min = m => new Date(AGORA - m * 60000).toISOString();
-const ev = (tipo, papel, ha, dados = {}, tarefa = 't', projeto = 'p') => ({ ts: min(ha), tarefa, projeto, harness: 'claude', tipo, papel, dados });
+const ev = (tipo, papel, ha, dados = {}, tarefa = 't', projeto = 'meu-proj') => ({ ts: min(ha), tarefa, projeto, harness: 'claude', tipo, papel, dados });
 const base = { projeto: 'meu-proj', tarefa: null, nomes: {}, avatares: new Set(), agora: AGORA };
 const func = (est, papel) => est.funcionarios.find(f => f.papel === papel);
 
@@ -115,4 +115,26 @@ test('gerente: atividade conta eventos da tarefa com papel null ou "gerente"', (
   const evs = [ev('x', null, 1), ev('tarefa_fase', 'gerente', 1), ev('tarefa_fase', 'gerente', 2), ev('criterio', 'dev', 1)];
   const g = func(montarEstado({ ...base, eventos: [], tarefa: tar('executando', evs) }), 'gerente');
   assert.equal(g.atividade, 0.3);
+});
+
+test('estado e atividade só contam eventos DESTE projeto; nível continua global', () => {
+  const aqui = (tipo, ha, dados) => ev(tipo, 'dev', ha, dados, 't', 'meu-proj');
+  const la = (tipo, ha, dados) => ev(tipo, 'dev', ha, dados, 't', 'outro-proj');
+  // dev ocupado em outro projeto não aparece trabalhando aqui
+  assert.equal(func(montarEstado({ ...base, eventos: [la('agente_inicio', 1, { agent_id: 'b1' })] }), 'dev').estado, 'ocioso');
+  // trabalhando aqui: atividade ignora o volume do outro projeto
+  const evs = [aqui('agente_inicio', 2, { agent_id: 'a1' }), aqui('criterio', 1), ...Array.from({ length: 8 }, () => la('criterio', 1))];
+  const dev = func(montarEstado({ ...base, eventos: evs }), 'dev');
+  assert.equal(dev.estado, 'trabalhando');
+  assert.equal(dev.atividade, 0.2);
+  // fim no outro projeto não encerra o agente daqui
+  const fimLa = la('agente_fim', 1, { agent_id: 'a1' });
+  assert.equal(func(montarEstado({ ...base, eventos: [aqui('agente_inicio', 2, { agent_id: 'a1' }), fimLa] }), 'dev').estado, 'trabalhando');
+  // nível é global: tarefas de outro projeto contam
+  const glob = [];
+  for (let i = 0; i < 12; i++) {
+    glob.push({ ts: min(1000 - i), tarefa: `t${i}`, projeto: 'outro-proj', tipo: 'agente_inicio', papel: 'dev', dados: {} });
+    glob.push({ ts: min(1000 - i), tarefa: `t${i}`, projeto: 'outro-proj', tipo: 'tarefa_fechada', papel: 'gerente', dados: {} });
+  }
+  assert.equal(func(montarEstado({ ...base, eventos: glob }), 'dev').nivel, 'Especialista');
 });
