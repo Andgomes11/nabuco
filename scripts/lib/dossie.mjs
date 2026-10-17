@@ -27,6 +27,8 @@ export function atributos(m) {
   return { faro, precisao, confiabilidade: media(partes) };
 }
 
+// tolerância 1e-12: a diferença de duas taxas em ponto flutuante pode cair um fio abaixo de 0,05
+// (ex.: 0.7 - 0.65 = 0.04999999999999993); sem ela, uma variação de exatamente 5 pontos viraria '→'
 const seta = (agora, antes) => {
   if (agora === null || antes === null) return null;
   const d = agora - antes;
