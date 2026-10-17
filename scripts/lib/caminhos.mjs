@@ -6,6 +6,10 @@ export function nabucoHome() {
   return process.env.NABUCO_HOME || join(homedir(), '.nabuco');
 }
 export function dirProjeto(projeto) { return join(projeto, '.nabuco'); }
+
+// true se `p` é a pasta global do nabuco (NABUCO_HOME ou ~/.nabuco); no Windows ignora caixa.
+const normalizar = p => (process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p));
+export const ehPastaGlobal = p => [nabucoHome(), join(homedir(), '.nabuco')].some(g => normalizar(g) === normalizar(p));
 export function dirTarefas(projeto) { return join(projeto, '.nabuco', 'tarefas'); }
 
 // Sobe a partir de `inicio` até achar um projeto: a primeira pasta com `.nabuco/`

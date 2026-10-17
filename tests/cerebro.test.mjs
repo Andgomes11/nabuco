@@ -331,3 +331,37 @@ test('metricas: tabela e --papel', () => {
   assert.equal(JSON.parse(run(['metricas', '--papel', 'dev', '--json']).stdout).dev.aceitacao_1a, 1);
   assert.equal(run(['metricas', '--papel', 'xx']).status, 2);
 });
+
+// ---------- pasta global como projeto (achado final #1) ----------
+test('cwd = pasta que contém NABUCO_HOME: projeto não é a pasta global; nenhuma lição duplica ou some', () => {
+  const h = join(base, '.nabuco');
+  const r = args => spawnSync(process.execPath, [CLI, ...args], { cwd: base, encoding: 'utf8', env: { ...process.env, NABUCO_HOME: h, NABUCO_HARNESS: 'claude' } });
+  const arqG = join(h, 'licoes', 'dev.md');
+  const a = r(['licao-add', '--de', arq('g.json', licao())]);
+  assert.equal(a.status, 0, a.stderr);
+  assert.equal(a.stdout.trim(), 'dev-0001');
+  assert.deepEqual(JSON.parse(r(['licoes']).stdout).map(x => [x.id, x.escopo]), [['dev-0001', 'global']]);
+  assert.equal(JSON.parse(r(['buscar', '--papel', 'dev', '--texto', 'build falha com módulo desatualizado', '--json']).stdout).length, 1);
+  // lição de projeto aqui não tem onde morar
+  const p = r(['licao-add', '--de', arq('p.json', licao({ ...distintas(1), escopo: 'projeto' }))]);
+  assert.equal(p.status, 1);
+  assert.match(p.stderr, /sem projeto/);
+  // mover para o próprio escopo: no-op, nada perdido
+  const g = r(['licao-editar', '--id', 'dev-0001', '--escopo', 'global']);
+  assert.equal(g.status, 0, g.stderr);
+  assert.match(readFileSync(arqG, 'utf8'), /^## dev-0001 · /m);
+  const pr = r(['licao-editar', '--id', 'dev-0001', '--escopo', 'projeto']);
+  assert.equal(pr.status, 1);
+  assert.match(readFileSync(arqG, 'utf8'), /^## dev-0001 · /m);
+  // voto conta como global (commita na home)
+  mkdirSync(h, { recursive: true });
+  spawnSync('git', ['init', '-q', h]);
+  for (const [k, v] of [['user.email', 't@t'], ['user.name', 'T'], ['commit.gpgsign', 'false']]) spawnSync('git', ['-C', h, 'config', k, v]);
+  assert.equal(r(['voto', '--id', 'dev-0001', '--util', 'sim']).status, 0);
+  assert.match(spawnSync('git', ['-C', h, 'log', '--oneline'], { encoding: 'utf8' }).stdout, /licao: votar dev-0001 sim/);
+  // aposentar: vai para o arquivo morto, uma vez só
+  assert.equal(r(['aposentar', '--id', 'dev-0001', '--motivo=velha']).status, 0);
+  const morto = readFileSync(join(h, 'licoes', 'arquivo', 'dev.md'), 'utf8');
+  assert.equal([...morto.matchAll(/^## dev-0001 · /gm)].length, 1);
+  assert.deepEqual(JSON.parse(r(['licoes']).stdout), []);
+});

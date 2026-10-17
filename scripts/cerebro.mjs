@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { acharProjeto, nabucoHome, dirTarefas, lerAtiva } from './lib/caminhos.mjs';
 import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
@@ -15,7 +15,7 @@ import { ranquear } from './lib/busca.mjs';
 import { serializarBloco, substituirBloco, acrescentarBloco, proximoId, lerLicoes } from './lib/licoes.mjs';
 import {
   ESCOPOS, hoje, arquivoLicoes, arquivoMorto, lerArquivo, gravarArquivo, blocosDe, ativas,
-  acharLicao, blocoComExtras, normalizarEvidencia,
+  acharLicao, blocoComExtras, normalizarEvidencia, semProjeto,
 } from './lib/repositorio-licoes.mjs';
 
 class ErroUso extends Error {}
@@ -82,6 +82,9 @@ function idsDoPapel(papel) {
 function moverEscopo(achada, bloco, destino, campos) {
   const { papel } = achada;
   const arqDestino = arquivoLicoes(destino, papel, projeto);
+  if (!arqDestino) throw new ErroRegra(SEM_PROJETO);
+  // origem e destino no mesmo arquivo: gravar o destino e apagar a origem perderia a lição
+  if (resolve(arqDestino) === resolve(achada.arquivo)) throw new ErroRegra(`lição ${achada.bloco.id} já está no arquivo de destino (${arqDestino})`);
   const txtDestino = lerArquivo(arqDestino);
   if (!bloco.regra) limite(txtDestino, papel);
   const ocupados = new Set([...lerLicoes(txtDestino).blocos, ...(destino === 'global' ? lerLicoes(lerArquivo(arquivoMorto(papel))).blocos : [])].map(b => b.id));
@@ -97,6 +100,9 @@ function moverEscopo(achada, bloco, destino, campos) {
   });
   return id;
 }
+
+const SEM_PROJETO = 'sem projeto: rode a partir da raiz de um projeto (pasta com .git ou .nabuco)';
+function exigirProjeto(escopo) { if (escopo === 'projeto' && semProjeto(projeto)) throw new ErroRegra(SEM_PROJETO); }
 
 const semBruto = ({ bruto, ...b }) => b;
 
@@ -159,6 +165,7 @@ const comandos = {
     if (!ESCOPOS.includes(escopo)) erros.push(`escopo deve ser: ${ESCOPOS.join(', ')}`);
     if (erros.length) throw new ErroRegra('lição inválida:\n' + erros.map(e => `  - ${e}`).join('\n'));
     const { papel } = l;
+    exigirProjeto(escopo);
     if (!v.forcar) {
       const alvo = `${l.titulo} ${l.gatilho}`;
       const parecida = ativas([...blocosDe('projeto', papel, projeto), ...blocosDe('global', papel, projeto)])
@@ -187,6 +194,7 @@ const comandos = {
     exigir(v.id, 'id');
     if (!v.de && !v.escopo) throw new ErroUso('informe --de e/ou --escopo');
     if (v.escopo && !ESCOPOS.includes(v.escopo)) throw new ErroUso(`--escopo deve ser: ${ESCOPOS.join(', ')}`);
+    if (v.escopo) exigirProjeto(v.escopo);
     const mudancas = v.de ? lerEntrada(v.de) : {};
     const achada = exigirLicao(v.id);
     const desconhecidos = Object.keys(mudancas ?? {}).filter(k => !EDITAVEIS.includes(k));

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { nabucoHome, dirProjeto } from './caminhos.mjs';
+import { nabucoHome, dirProjeto, ehPastaGlobal } from './caminhos.mjs';
 import { PAPEIS_CEREBRO } from './constantes.mjs';
 import { lerLicoes, substituirBloco } from './licoes.mjs';
 
@@ -8,7 +8,11 @@ export const ESCOPOS = ['global', 'projeto'];
 
 export const hoje = () => new Date().toLocaleDateString('sv-SE'); // AAAA-MM-DD local
 
+// Escopo projeto sem projeto de verdade (a "pasta do projeto" é a pasta global, ex.: cwd = ~) => null:
+// senão o arquivo do projeto seria o próprio arquivo global e a lição apareceria (e sumiria) duas vezes.
+export function semProjeto(projeto) { return ehPastaGlobal(dirProjeto(projeto)); }
 export function arquivoLicoes(escopo, papel, projeto) {
+  if (escopo === 'projeto' && semProjeto(projeto)) return null;
   const base = escopo === 'projeto' ? dirProjeto(projeto) : nabucoHome();
   return join(base, 'licoes', `${papel}.md`);
 }
@@ -17,7 +21,7 @@ export function arquivoMorto(papel) {
 }
 
 export function lerArquivo(arq) {
-  return existsSync(arq) ? readFileSync(arq, 'utf8') : '';
+  return arq && existsSync(arq) ? readFileSync(arq, 'utf8') : '';
 }
 export function gravarArquivo(arq, texto) {
   mkdirSync(dirname(arq), { recursive: true });
@@ -26,7 +30,9 @@ export function gravarArquivo(arq, texto) {
 
 // Blocos de um papel num escopo, com o escopo real (o do arquivo) sobrescrevendo o declarado.
 export function blocosDe(escopo, papel, projeto) {
-  return lerLicoes(lerArquivo(arquivoLicoes(escopo, papel, projeto))).blocos.map(b => ({ ...b, escopo }));
+  const arq = arquivoLicoes(escopo, papel, projeto);
+  if (!arq) return [];
+  return lerLicoes(lerArquivo(arq)).blocos.map(b => ({ ...b, escopo }));
 }
 export const ativas = blocos => blocos.filter(b => !b.regra);
 
@@ -38,6 +44,7 @@ export function acharLicao(id, projeto) {
   if (!papel || !PAPEIS_CEREBRO.includes(papel)) return null;
   for (const escopo of ['projeto', 'global']) {
     const arquivo = arquivoLicoes(escopo, papel, projeto);
+    if (!arquivo) continue;
     const texto = lerArquivo(arquivo);
     const bloco = lerLicoes(texto).blocos.find(b => b.id === id);
     if (bloco) return { papel, escopo, arquivo, texto, bloco };

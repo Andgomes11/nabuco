@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { homedir } from 'node:os';
-import { acharProjeto, dirProjeto, dirTarefas, lerAtiva, escreverAtiva, limparAtiva, nabucoHome } from './lib/caminhos.mjs';
+import { join } from 'node:path';
+import { acharProjeto, dirProjeto, dirTarefas, lerAtiva, escreverAtiva, limparAtiva, ehPastaGlobal } from './lib/caminhos.mjs';
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { registrar } from './lib/eventos.mjs';
@@ -31,8 +30,6 @@ const hoje = () => new Date().toLocaleDateString('sv-SE'); // AAAA-MM-DD local
 const agora = () => new Date().toISOString();
 const ler = (a, f) => lerJson(join(a.dir, f));
 const gravar = (a, f, d) => escreverJson(join(a.dir, f), d);
-const normalizar = p => process.platform === 'win32' ? resolve(p).toLowerCase() : resolve(p);
-const ehPastaGlobal = p => [nabucoHome(), join(homedir(), '.nabuco')].some(g => normalizar(g) === normalizar(p));
 
 function mudarFase(a, fase, motivo) {
   const estado = ler(a, 'estado.json');
