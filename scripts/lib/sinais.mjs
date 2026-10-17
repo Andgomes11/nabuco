@@ -52,6 +52,7 @@ export function coletarSinais(dir) {
     correcoes_usuario: de('correcao_usuario').map(e => ({ papel: e.papel ?? null, dados: dados(e) })),
     licoes_usadas: de('licao_usada').map(e => ({ id: dados(e).id, util: dados(e).util })),
     transitorios,
+    bug_resolvido: estado.tipo === 'bug' && estado.fase === 'concluida',
     log: secaoLog(dir),
   };
 }

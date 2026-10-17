@@ -76,7 +76,7 @@ test('tarefa: usa o cérebro (busca, voto, escapes, retro)', () => {
 
 test('retro: sinais, casos, lições, higiene e aprovação item a item', () => {
   const r = lerSkill('retro');
-  for (const c of ['sinais', 'transitorios', 'similares --de', 'caso-add', 'licao-add', 'licao-reforcar', 'higiene', 'item a item']) {
+  for (const c of ['sinais', 'transitorios', 'similares --de', 'caso-add', 'licao-add', 'licao-reforcar', 'higiene', 'item a item', 'bug_resolvido']) {
     assert.ok(r.includes(c), `faltou "${c}"`);
   }
   assert.match(r, /nunca grav/i);

@@ -39,6 +39,16 @@ test('coletarSinais agrega eventos e log', () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('coletarSinais: bug_resolvido só para bug concluído', () => {
+  const casos = [['bug', 'concluida', true], ['bug', 'executando', false], ['feature', 'concluida', false]];
+  for (const [tipo, fase, esperado] of casos) {
+    const dir = fixture([]);
+    writeFileSync(join(dir, 'estado.json'), JSON.stringify({ slug: 'x', tipo, fase }));
+    try { assert.equal(coletarSinais(dir).bug_resolvido, esperado, tipo + '/' + fase); }
+    finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+});
+
 test('coletarSinais sem progresso.md nem eventos.jsonl', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nabuco sin-'));
   try {
