@@ -59,3 +59,39 @@ test('skills de design: existem, têm checklist e crédito', () => {
   const chk = readFileSync(join(RAIZ, 'skills', 'design-mobile', 'checklist.md'), 'utf8');
   for (const item of ['44', '48', 'safe area', 'VoiceOver', 'TalkBack', 'modo escuro']) assert.ok(chk.toLowerCase().includes(item.toLowerCase()), item);
 });
+
+const ler = (...p) => readFileSync(join(RAIZ, ...p), 'utf8');
+const lerSkill = s => (existsSync(join(RAIZ, 'skills', s, 'SKILL.md')) ? ler('skills', s, 'SKILL.md') : '');
+
+test('skills da Fase 2 existem', () => {
+  for (const s of ['retro', 'licoes']) assert.ok(skills.includes(s), s);
+});
+
+test('tarefa: usa o cérebro (busca, voto, escapes, retro)', () => {
+  const t = lerSkill('tarefa');
+  for (const c of ['buscar --papel gerente', 'buscar --papel <escritor>', 'voto --id', 'correcao_usuario', 'apos_pronto', '/nabuco:retro', '$retro']) {
+    assert.ok(t.includes(c), `faltou "${c}"`);
+  }
+});
+
+test('retro: sinais, casos, lições, higiene e aprovação item a item', () => {
+  const r = lerSkill('retro');
+  for (const c of ['sinais', 'transitorios', 'similares --de', 'caso-add', 'licao-add', 'licao-reforcar', 'higiene', 'item a item']) {
+    assert.ok(r.includes(c), `faltou "${c}"`);
+  }
+  assert.match(r, /nunca grav/i);
+});
+
+test('licoes: listar, métricas, aposentar, promover e higiene', () => {
+  const l = lerSkill('licoes');
+  for (const c of ['licoes', 'metricas', 'aposentar', 'promover', 'higiene']) assert.ok(l.includes(c), `faltou "${c}"`);
+});
+
+for (const arq of readdirSync(join(RAIZ, 'papeis')).filter(f => f.endsWith('.md'))) {
+  test(`papel ${arq}: entrega com lições usadas e ≤ 80 linhas`, () => {
+    const p = ler('papeis', arq);
+    assert.ok(p.includes('**lições usadas:**'), 'faltou "**lições usadas:**"');
+    assert.ok(p.split(/\r?\n/).length <= 80, `${arq} passou de 80 linhas`);
+    if (arq === 'debugger.md') assert.ok(p.includes('cerebro.mjs" buscar'), 'debugger deve saber buscar lições');
+  });
+}

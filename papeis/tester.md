@@ -23,4 +23,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** nenhuma (somente verificação)
 - **decisões:** lacunas de teste encontradas
 - **evidência:** por critério: `id · comando · passou/falhou · saída resumida`
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que não deu para rodar e por quê (ou "nenhum")

@@ -29,4 +29,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** arquivos alterados e o que mudou (ou "nenhuma")
 - **decisões:** direção visual, tokens e trade-offs
 - **evidência:** screenshot(s) gerado(s), checklist conferida, testes/lint rodados
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que impede avançar (ou "nenhum")

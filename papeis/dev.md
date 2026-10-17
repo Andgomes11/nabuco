@@ -25,4 +25,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** arquivos alterados e o que mudou (ou "nenhuma")
 - **decisões:** escolhas feitas e por quê
 - **evidência:** comando executado + resultado resumido (ex.: `npm test` → 142 passed)
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que impede avançar (ou "nenhum")

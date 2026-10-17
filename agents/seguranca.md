@@ -27,4 +27,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** nenhuma (somente revisão)
 - **decisões:** achados — `severidade · arquivo:linha · ataque concreto · correção sugerida`
 - **evidência:** trechos e fontes (CVE/advisory) que comprovam cada achado
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que não deu para avaliar (ou "nenhum")

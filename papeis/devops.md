@@ -23,4 +23,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** arquivos alterados e o que mudou (ou "nenhuma")
 - **decisões:** escolhas e por quê (versões fixadas, alternativas descartadas)
 - **evidência:** validações locais executadas + resultados resumidos
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que impede avançar (ou "nenhum")

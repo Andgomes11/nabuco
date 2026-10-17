@@ -26,4 +26,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** arquivos de documentação alterados (ou "nenhuma")
 - **decisões:** o que foi documentado e o que ficou de fora, e por quê
 - **evidência:** exemplos conferidos contra o código (arquivo:linha)
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que impede avançar (ou "nenhum")

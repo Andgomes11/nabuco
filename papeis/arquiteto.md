@@ -23,4 +23,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** nenhuma (somente análise)
 - **decisões:** abordagens comparadas, recomendação e motivo
 - **evidência:** trechos do código que embasam a análise (arquivo:linha)
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** dúvidas que o usuário precisa decidir (ou "nenhum")

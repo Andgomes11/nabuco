@@ -26,4 +26,5 @@ Responda sempre neste formato, em português:
 - **mudanças:** nenhuma (somente revisão)
 - **decisões:** lista de achados — `severidade (alta/média/baixa) · arquivo:linha · cenário que falha · sugestão`
 - **evidência:** trechos que comprovam cada achado
+- **lições usadas:** id de cada lição recebida que você aplicou ou que não serviu, com 👍 (ajudou) ou 👎 (atrapalhou/irrelevante), ou "nenhuma"
 - **bloqueios:** o que não deu para avaliar (ou "nenhum")
