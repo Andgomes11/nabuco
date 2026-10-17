@@ -3,7 +3,7 @@
 const CHAVE = new URLSearchParams(location.search).get('k') ?? '';
 const {
   velocidadeChuva, corDoEstado, rotuloEstado, rotuloNivel, formatarAtributo, formatarIndicador,
-  seta, urlAvatar, urlFontes, INDICADORES, ATRIBUTOS,
+  seta, urlAvatar, urlFontes, resumoGate, INDICADORES, ATRIBUTOS,
 } = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`);
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
 
@@ -277,23 +277,21 @@ function renderizarCabecalho(e) {
   }
   tarefa.classList.remove('vazio');
   tarefa.textContent = `${e.tarefa.nome} · ${(e.tarefa.fase ?? 'sem fase').replaceAll('_', ' ')}`;
-  const g = e.tarefa.gate ?? { passou: 0, total: 0, pendencias: [] };
+  const g = resumoGate(e.tarefa.gate);
   gate.hidden = false;
-  $('gate-placar').textContent = `${g.passou}/${g.total}`;
-  const pend = Array.isArray(g.pendencias) ? g.pendencias : [];
-  gate.dataset.situacao = pend.length || !g.total ? 'pendente' : 'ok';
+  $('gate-placar').textContent = g.placar;
+  gate.dataset.situacao = g.situacao;
   const lista = $('gate-pendencias');
   lista.replaceChildren();
-  if (!pend.length) {
-    lista.append(el('li', 'ok', 'todos os critérios passaram com evidência'));
-  } else {
-    for (const p of pend) {
-      const li = el('li');
-      li.append(el('span', 'id', p.id), document.createTextNode(p.motivo ?? ''));
-      lista.append(li);
-    }
+  if (g.mensagem) lista.append(el('li', g.situacao, g.mensagem));
+  for (const p of g.pendencias) {
+    const li = el('li');
+    li.append(el('span', 'id', p.id), document.createTextNode(p.motivo ?? ''));
+    lista.append(li);
   }
-  gate.querySelector('summary').setAttribute('aria-label', `gate: ${g.passou} de ${g.total} critérios passaram; ${pend.length} pendência(s)`);
+  gate.querySelector('summary').setAttribute('aria-label', g.total
+    ? `gate: ${g.passou} de ${g.total} critérios passaram; ${g.pendencias.length} pendência(s)`
+    : 'gate: nenhum critério definido');
 }
 
 // só a situação da conexão é anunciada; a contagem de eventos muda o tempo todo e fica fora da região viva

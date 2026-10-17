@@ -96,3 +96,22 @@ test('formatarIndicador: taxas em %, contagens inteiras, médias com 1 casa, nul
   assert.equal(formatarIndicador('escapes', null), '—');
   assert.equal(formatarIndicador('aceitacao_1a', undefined), '—');
 });
+
+test('resumoGate: sem critérios => neutro "nenhum critério definido", nunca "todos passaram"', async () => {
+  const { resumoGate } = await import('../scripts/painel/publico/modelo.mjs');
+  const vazio = resumoGate({ passou: 0, total: 0, pendencias: [] });
+  assert.equal(vazio.situacao, 'vazio');
+  assert.equal(vazio.mensagem, 'nenhum critério definido');
+  assert.equal(vazio.placar, '0/0');
+  assert.deepEqual(vazio.pendencias, []);
+  assert.equal(resumoGate(undefined).situacao, 'vazio');
+  const ok = resumoGate({ passou: 2, total: 2, pendencias: [] });
+  assert.equal(ok.situacao, 'ok');
+  assert.equal(ok.mensagem, 'todos os critérios passaram com evidência');
+  const pend = resumoGate({ passou: 1, total: 2, pendencias: [{ id: 'c2', motivo: 'm' }] });
+  assert.equal(pend.situacao, 'pendente');
+  assert.equal(pend.mensagem, null);
+  assert.deepEqual(pend.pendencias, [{ id: 'c2', motivo: 'm' }]);
+  // placar incompleto sem pendências listadas não vira "todos passaram"
+  assert.equal(resumoGate({ passou: 1, total: 2, pendencias: [] }).situacao, 'pendente');
+});

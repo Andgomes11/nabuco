@@ -70,3 +70,14 @@ export const ATRIBUTOS = [
   { chave: 'precisao', rotulo: 'Precisão', dica: 'acertar de primeira', indicadores: ['aceitacao_1a'] },
   { chave: 'confiabilidade', rotulo: 'Confiabilidade', dica: 'não deixar escapar nem repetir', indicadores: ['recorrencia', 'escapes'] },
 ];
+
+// gate no cabeçalho: sem critérios é neutro ("nenhum critério definido"), nunca "todos passaram"
+export function resumoGate(g) {
+  const passou = finito(g?.passou) ? g.passou : 0;
+  const total = finito(g?.total) ? g.total : 0;
+  const pendencias = Array.isArray(g?.pendencias) ? g.pendencias : [];
+  const base = { placar: `${passou}/${total}`, passou, total, pendencias };
+  if (total === 0) return { ...base, situacao: 'vazio', mensagem: 'nenhum critério definido' };
+  if (pendencias.length || passou < total) return { ...base, situacao: 'pendente', mensagem: pendencias.length ? null : 'critérios pendentes' };
+  return { ...base, situacao: 'ok', mensagem: 'todos os critérios passaram com evidência' };
+}

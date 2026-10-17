@@ -152,6 +152,7 @@ kbd {
 .gate summary:hover { border-color: var(--verde); }
 .gate[data-situacao="ok"] #gate-placar { color: var(--verde-texto); }
 .gate[data-situacao="pendente"] #gate-placar { color: var(--vermelho); }
+.gate[data-situacao="vazio"] #gate-placar { color: var(--texto-suave); }
 .gate-pendencias {
   position: absolute;
   right: 0;
@@ -169,6 +170,7 @@ kbd {
 }
 .gate-pendencias .id { color: var(--vermelho); margin-right: var(--e2); }
 .gate-pendencias .ok { color: var(--verde-texto); }
+.gate-pendencias .vazio, .gate-pendencias .pendente { color: var(--texto-suave); }
 
 .conexao {
   display: flex;
