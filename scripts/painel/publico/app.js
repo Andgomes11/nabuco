@@ -62,8 +62,11 @@ class Tela {
     const cor = corDoEstado(f.estado);
     const mudou = vel !== this.vel || cor !== this.cor;
     const congelar = cor === 'vermelho' && this.cor === 'verde' && this.temQuadro;
+    const mesmaCor = cor === this.cor;
     this.vel = vel; this.cor = cor;
     if (!mudou) return;
+    // só a velocidade mudou e a chuva está andando: a animação segue com o rastro (limpar faria piscar)
+    if (mesmaCor && this.emMovimento()) return;
     if (congelar) this.tingir(cores.espera); // congela o quadro exato em que parou, em vermelho
     else this.redesenhar();
   }
