@@ -306,3 +306,28 @@ test('higiene com home vazia → []', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), []);
 });
+
+test('metricas: home vazia => exit 0 e aviso de sem dados', () => {
+  const r = run(['metricas']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /sem dados|não há dados/i);
+  const j = run(['metricas', '--json']);
+  assert.equal(j.status, 0, j.stderr);
+  assert.equal(Object.keys(JSON.parse(j.stdout)).length, 10);
+});
+
+test('metricas: tabela e --papel', () => {
+  mkdirSync(home, { recursive: true });
+  const linhas = [];
+  for (let i = 0; i < 4; i++) {
+    const b = { projeto: 'p', harness: 'claude', ts: `2026-01-0${i + 1}T00:00:00Z` };
+    linhas.push({ ...b, tipo: 'agente_inicio', tarefa: `t${i}`, papel: 'dev', dados: {} }, { ...b, tipo: 'tarefa_fechada', tarefa: `t${i}`, papel: 'gerente', dados: {} });
+  }
+  writeFileSync(join(home, 'historico.jsonl'), linhas.map(l => JSON.stringify(l)).join('\n') + '\nlixo\n');
+  const r = run(['metricas', '--papel', 'dev']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /dev/); assert.match(r.stdout, /provisório/); assert.match(r.stdout, /100%/); assert.match(r.stdout, /—/);
+  assert.doesNotMatch(r.stdout, /designer/);
+  assert.equal(JSON.parse(run(['metricas', '--papel', 'dev', '--json']).stdout).dev.aceitacao_1a, 1);
+  assert.equal(run(['metricas', '--papel', 'xx']).status, 2);
+});

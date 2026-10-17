@@ -9,6 +9,7 @@ import { registrar } from './lib/eventos.mjs';
 import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } from './lib/constantes.mjs';
 import { similaridade } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
+import { calcularMetricas, lerHistorico } from './lib/metricas.mjs';
 import { commitHome } from './lib/git.mjs';
 import { ranquear } from './lib/busca.mjs';
 import { serializarBloco, substituirBloco, acrescentarBloco, proximoId, lerLicoes } from './lib/licoes.mjs';
@@ -98,6 +99,21 @@ function moverEscopo(achada, bloco, destino, campos) {
 }
 
 const semBruto = ({ bruto, ...b }) => b;
+
+const pct = n => (n === null ? '—' : `${Math.round(n * 100)}%`);
+const dec = n => (n === null ? '—' : String(Number(n.toFixed(2))));
+function tabelaMetricas(m, papeis) {
+  const cab = ['papel', 'nível', 'amostra', 'aceit. 1ª', 'tentativas', 'recorr.', 'turnos', 'escapes', 'útil', 'promoções'];
+  const linhas = papeis.map(p => {
+    const x = m[p];
+    const nivel = x.nivel === null ? '—' : x.provisorio ? `${x.nivel} (provisório)` : x.nivel;
+    return [p, nivel, String(x.amostra), pct(x.aceitacao_1a), dec(x.tentativas_ate_verde), pct(x.recorrencia), dec(x.turnos_ate_causa), String(x.escapes), pct(x.pct_util), String(x.promocoes)];
+  });
+  const larg = cab.map((c, i) => Math.max(c.length, ...linhas.map(l => l[i].length)));
+  const fmt = l => l.map((c, i) => c.padEnd(larg[i])).join('  ').trimEnd();
+  return [fmt(cab), ...linhas.map(fmt)].join('
+');
+}
 
 const comandos = {
   'caso-add'() {
@@ -285,6 +301,17 @@ const comandos = {
     const blocos = (v.papel ? [v.papel] : PAPEIS_CEREBRO)
       .flatMap(p => [...blocosDe('global', p, projeto), ...blocosDe('projeto', p, projeto)]);
     console.log(JSON.stringify(propostasHigiene(ativas(blocos), hoje()), null, 2));
+  },
+
+  metricas() {
+    const { values: v } = opcoes({ papel: { type: 'string' }, json: { type: 'boolean' } });
+    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    const eventos = lerHistorico(nabucoHome());
+    const todas = calcularMetricas(eventos);
+    const papeis = v.papel ? [v.papel] : PAPEIS_CEREBRO;
+    if (v.json) { console.log(JSON.stringify(Object.fromEntries(papeis.map(p => [p, todas[p]])), null, 2)); return; }
+    if (!eventos.length) { console.log('Sem dados: o histórico de eventos está vazio, ainda não há métricas de senioridade.'); return; }
+    console.log(tabelaMetricas(todas, papeis));
   },
 };
 
