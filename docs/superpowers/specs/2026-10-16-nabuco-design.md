@@ -210,7 +210,7 @@ Por papel, com tamanho da amostra: recorrência (erro com lição que voltou), t
 
 - `/nabuco:painel`: servidor Node local (127.0.0.1, porta livre, chave na URL), lê `historico.jsonl` + `eventos.jsonl` do projeto, atualiza ao vivo (SSE), abre o navegador.
 - **Monitores**: um por funcionário; chuva de código com velocidade = atividade; vermelho/parado = travado aguardando usuário; apagado = ocioso. Cabeçalho com tarefa, fase e gate.
-- **Avatares**: imagens geradas por IA em `assets/avatares/<papel>-<nivel>.png` (prompts em `avatares/PROMPTS.md`); efeitos de estado aplicados por CSS/canvas; fallback em silhueta se faltar imagem. Regra: todo elemento visual corresponde a um dado.
+- **Avatares**: imagens geradas por IA em `assets/avatares/<papel>-<nivel>.png` (prompts em `docs/avatares-prompts.md`); efeitos de estado aplicados por CSS/canvas; fallback em silhueta se faltar imagem. Regra: todo elemento visual corresponde a um dado.
 - **Dossiê** (clique): nível ("clearance") e amostra, equipamento (modelo/effort), atributos com tendência (Faro, Precisão, Confiabilidade), diário de batalha (casos), "programas carregados" (lições com 👍/👎, ruins destacadas), talentos (regras). Cada número clicável até os eventos de origem.
 - Evitar: XP por volume, ranking entre funcionários, animações sem dado.
 

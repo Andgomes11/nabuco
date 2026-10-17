@@ -1,6 +1,6 @@
 # Prompts dos avatares — time Matrix
 
-Salve como `<papel>-<nivel>.png` nesta pasta (ex: `debugger-1.png`). Níveis: 1 Júnior · 2 Pleno · 3 Sênior · 4 Especialista.
+Salve como `<papel>-<nivel>.png` em `assets/avatares/` (ex: `debugger-1.png`). Níveis: 1 Júnior · 2 Pleno · 3 Sênior · 4 Especialista.
 
 ## Estilo base (cole SEMPRE no início)
 
