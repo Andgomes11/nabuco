@@ -32,7 +32,8 @@ test('decidirGate: só bloqueia em executando/checando', () => {
   assert.equal(r.bloquear, true);
   assert.match(r.motivo, /c1: status "pendente"/);
   assert.match(r.motivo, /T concluir/);
-  assert.match(r.motivo, /T fase aguardando_usuario/);
+  assert.match(r.motivo, /--evidencia="<saída>"/);
+  assert.match(r.motivo, /T fase aguardando_usuario --motivo="<pergunta>"/);
 });
 
 test('decidirGate: tudo passou mas não concluiu ainda bloqueia', () => {
@@ -95,25 +96,61 @@ function prepararBloqueio() {
   return readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
 }
 
-test('hook: trava anti-loop libera após 3 bloqueios seguidos', () => {
+test('hook: trava anti-loop libera na 3ª tentativa seguida sem progresso, sem stop_hook_active', () => {
   const ativa = prepararBloqueio();
-  const p = { cwd: proj, stop_hook_active: true };
+  const p = { cwd: proj, hook_event_name: 'Stop' };
   assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
   assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
   const r = gate(p);
   assert.equal(r.status, 0); assert.equal(r.stdout, '');
-  assert.match(r.stderr, /3 vezes/);
+  assert.match(r.stderr, /após 3 tentativas de encerrar sem progresso/);
   const dir = join(proj, '.nabuco', 'tarefas', ativa);
   assert.equal(JSON.parse(readFileSync(join(dir, 'estado.json'), 'utf8')).fase, 'aguardando_usuario');
   assert.match(readFileSync(join(dir, 'eventos.jsonl'), 'utf8'), /"tipo":"gate_liberado"/);
+  assert.ok(!existsSync(join(dir, 'gate-bloqueios')));
 });
 
-test('hook: stop_hook_active false reinicia o contador', () => {
+test('hook: trava anti-loop também libera com stop_hook_active true', () => {
   prepararBloqueio();
-  gate({ cwd: proj, stop_hook_active: true });
-  gate({ cwd: proj, stop_hook_active: true });
+  const p = { cwd: proj, stop_hook_active: true };
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  assert.equal(gate(p).stdout, '');
+});
+
+test('hook: progresso nos critérios reinicia o contador', () => {
+  prepararBloqueio();
+  const p = { cwd: proj };
+  gate(p); gate(p);
+  assert.equal(tarefa('criterio-add', '--id', 'c2', '--descricao', 'd', '--verificacao', 'v').status, 0);
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  assert.equal(JSON.parse(gate(p).stdout).decision, 'block');
+  assert.equal(gate(p).stdout, '');
+});
+
+test('hook: stop_hook_active false explícito reinicia o contador', () => {
+  prepararBloqueio();
+  gate({ cwd: proj }); gate({ cwd: proj });
   assert.equal(JSON.parse(gate({ cwd: proj, stop_hook_active: false }).stdout).decision, 'block');
-  assert.equal(JSON.parse(gate({ cwd: proj, stop_hook_active: true }).stdout).decision, 'block');
+  assert.equal(JSON.parse(gate({ cwd: proj }).stdout).decision, 'block');
+  assert.equal(gate({ cwd: proj }).stdout, '');
+});
+
+test('hook: contador não gravável → não bloqueia (falha aberta) e avisa', () => {
+  const ativa = prepararBloqueio();
+  mkdirSync(join(proj, '.nabuco', 'tarefas', ativa, 'gate-bloqueios'));
+  const r = gate({ cwd: proj });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '');
+  assert.match(r.stderr, /contador/);
+});
+
+test('hook: Stop fora das fases ativas não cria o contador', () => {
+  tarefa('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug');
+  const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  const r = gate({ cwd: proj });
+  assert.equal(r.status, 0); assert.equal(r.stdout, '');
+  assert.ok(!existsSync(join(proj, '.nabuco', 'tarefas', ativa, 'gate-bloqueios')));
 });
 
 test('hook: bloqueio sai mesmo com NABUCO_HOME não gravável', () => {

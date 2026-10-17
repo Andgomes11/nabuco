@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acharProjeto, lerAtiva } from './lib/caminhos.mjs';
@@ -8,7 +8,7 @@ import { decidirGate } from './lib/gate.mjs';
 import { registrar } from './lib/eventos.mjs';
 
 function lerPayload() {
-  try { return JSON.parse(readFileSync(0, 'utf8') || '{}'); } catch { return {}; }
+  try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
 }
 
 try {
@@ -17,40 +17,62 @@ try {
   const ativa = lerAtiva(projeto);
   if (!ativa) process.exit(0);
 
-  let estado, criterios;
+  const arqEstado = join(ativa.dir, 'estado.json');
+  const arqCriterios = join(ativa.dir, 'criterios.json');
+  let estado, criterios, marca;
   try {
-    estado = lerJson(join(ativa.dir, 'estado.json'));
-    criterios = lerJson(join(ativa.dir, 'criterios.json'));
+    estado = lerJson(arqEstado);
+    criterios = lerJson(arqCriterios);
+    marca = `${statSync(arqEstado).mtimeMs}|${statSync(arqCriterios).mtimeMs}`;
   } catch (e) {
     process.stderr.write(`nabuco: não consegui ler a tarefa ativa (${e.message}); gate ignorado.\n`);
     process.exit(0);
   }
 
-  // Trava anti-loop: contador de bloqueios seguidos.
+  // Trava anti-loop: tentativas seguidas de encerrar sem progresso (independe do harness).
+  // O contador guarda a "marca" (mtime de estado.json e criterios.json) do último bloqueio;
+  // se a marca mudou, o Gerente avançou e a contagem recomeça.
   const arqContador = join(ativa.dir, 'gate-bloqueios');
-  const lerContador = () => { try { return parseInt(readFileSync(arqContador, 'utf8'), 10) || 0; } catch { return 0; } };
-  const gravarContador = n => { try { writeFileSync(arqContador, String(n)); } catch { /* ignora */ } };
-  const reativado = payload.stop_hook_active === true;
-  if (!reativado) gravarContador(0);
+  const lerContador = () => {
+    try {
+      const c = JSON.parse(readFileSync(arqContador, 'utf8'));
+      return Number.isInteger(c?.n) && typeof c.marca === 'string' ? c : null;
+    } catch { return null; }
+  };
+  const zerarContador = () => {
+    if (!existsSync(arqContador)) return;
+    try { rmSync(arqContador, { force: true }); } catch (e) {
+      process.stderr.write(`nabuco: não consegui zerar o contador do gate (${e.message}).\n`);
+    }
+  };
 
   const cmdTarefa = `node "${join(dirname(fileURLToPath(import.meta.url)), 'tarefa.mjs')}"`;
   const r = decidirGate({ estado, criterios, cmdTarefa });
-  if (!r.bloquear) process.exit(0);
+  if (!r.bloquear) { zerarContador(); process.exit(0); }
 
-  const n = lerContador() + 1;
-  if (n >= 3 && reativado) {
-    gravarContador(0);
+  const anterior = lerContador();
+  const continua = anterior && payload.stop_hook_active !== false && anterior.marca === marca;
+  const n = (continua ? anterior.n : 0) + 1;
+
+  if (n >= 3) {
+    zerarContador();
     try {
-      escreverJson(join(ativa.dir, 'estado.json'), { ...estado, fase: 'aguardando_usuario' });
+      escreverJson(arqEstado, { ...estado, fase: 'aguardando_usuario' });
       registrar({ tipo: 'gate_liberado', dados: { bloqueios: n, pendencias: r.pendencias }, projeto, harness: undefined });
     } catch (e) {
       process.stderr.write(`nabuco: falha ao registrar a liberação do gate (${e.message}).\n`);
     }
-    process.stderr.write('nabuco: gate bloqueou 3 vezes seguidas; tarefa movida para aguardando_usuario.\n');
+    process.stderr.write(`nabuco: gate liberado após ${n} tentativas de encerrar sem progresso; tarefa movida para aguardando_usuario.\n`);
     process.exit(0);
   }
 
-  gravarContador(n);
+  try {
+    writeFileSync(arqContador, JSON.stringify({ n, marca }));
+  } catch (e) {
+    // Sem contador não há trava anti-loop: melhor não bloquear do que prender o turno.
+    process.stderr.write(`nabuco: não consegui gravar o contador do gate (${e.message}); gate ignorado.\n`);
+    process.exit(0);
+  }
   process.stdout.write(JSON.stringify({ decision: 'block', reason: r.motivo }) + '\n');
   try {
     registrar({ tipo: 'gate_bloqueou', dados: { fase: estado.fase, pendencias: r.pendencias }, projeto, harness: undefined });
