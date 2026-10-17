@@ -159,7 +159,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
       let corpo;
       try { corpo = readFileSync(join(PUBLICO, estatico[0])); } catch { return texto(res, 404, 'não encontrado'); }
       // a CSP proíbe script inline: a página só alcança estilo.css/app.js (que também exigem a chave) com ela na URL
-      if (caminho === '/') corpo = corpo.toString('utf8').replaceAll('__CHAVE__', chave);
+      if (caminho === '/') corpo = corpo.toString('utf8').replaceAll('__CHAVE__', () => chave); // função: $ na substituição nunca é interpretado
       return responder(res, 200, estatico[1], corpo);
     }
 
