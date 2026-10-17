@@ -36,3 +36,14 @@ test('tarefa: cobre os comandos do CLI e as regras-chave', () => {
   assert.match(t, /checadores_locais/);
   assert.match(t, /no máximo 2 rodadas/i);
 });
+
+test('skills de design: existem, têm checklist e crédito', () => {
+  const web = readFileSync(join(RAIZ, 'skills', 'design-web', 'SKILL.md'), 'utf8');
+  assert.match(web, /## Autocrítica/);
+  assert.match(web, /4\.5:1/);
+  assert.ok(existsSync(join(RAIZ, 'skills', 'design-web', 'NOTICE')));
+  const mob = readFileSync(join(RAIZ, 'skills', 'design-mobile', 'SKILL.md'), 'utf8');
+  assert.match(mob, /checklist\.md/);
+  const chk = readFileSync(join(RAIZ, 'skills', 'design-mobile', 'checklist.md'), 'utf8');
+  for (const item of ['44', '48', 'safe area', 'VoiceOver', 'TalkBack', 'modo escuro']) assert.ok(chk.toLowerCase().includes(item.toLowerCase()), item);
+});
