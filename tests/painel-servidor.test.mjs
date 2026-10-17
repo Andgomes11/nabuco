@@ -212,3 +212,39 @@ test('SSE sem chave → 403', async () => {
   const r = await pedir('/api/eventos', { chave: null });
   assert.equal(r.status, 403);
 });
+
+test('SSE: cliente novo durante o debounce não impede o antigo de receber a mudança', async () => {
+  mkdirSync(home, { recursive: true });
+  const a = await abrirSSE();
+  await a.esperar(() => true, 2000);
+  const ev = { ts: new Date().toISOString(), tipo: 'agente_inicio', papel: 'dev', projeto: 'p', tarefa: 't', dados: { agent_id: 'a1' } };
+  appendFileSync(join(home, 'historico.jsonl'), JSON.stringify(ev) + '\n');
+  const b = await abrirSSE(); // conecta antes do debounce disparar e já vê o estado novo
+  const trabalhando = e => e.funcionarios.find(f => f.papel === 'dev').estado === 'trabalhando';
+  await b.esperar(trabalhando, 2000);
+  await a.esperar(trabalhando, 2500);
+  assert.equal(b.estados.filter(trabalhando).length, 1, 'B não recebe o mesmo estado duas vezes');
+});
+
+test('404 e 405 também levam CSP e nosniff', async () => {
+  for (const r of [await pedir('/nada'), await pedir('/api/estado', { metodo: 'DELETE' })]) {
+    assert.ok([404, 405].includes(r.status));
+    assert.equal(r.headers['x-content-type-options'], 'nosniff');
+    assert.match(r.headers['content-security-policy'], /default-src 'self'/);
+  }
+});
+
+test('requisição HTTP malformada → 400 com cabeçalhos de segurança', async () => {
+  const { connect } = await import('node:net');
+  const resposta = await new Promise((ok, falha) => {
+    const s = connect(srv.porta, '127.0.0.1', () => s.write('GET / HTTP/1.1\r\nHost: x\r\nQuebrado sem dois pontos\r\n\r\n'));
+    let buf = '';
+    s.setEncoding('utf8');
+    s.on('data', c => { buf += c; });
+    s.on('close', () => ok(buf));
+    s.on('error', falha);
+  });
+  assert.match(resposta, /^HTTP\/1\.1 400/);
+  assert.match(resposta, /x-content-type-options: nosniff/i);
+  assert.match(resposta, /content-security-policy: default-src 'self'/i);
+});

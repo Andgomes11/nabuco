@@ -37,6 +37,7 @@ const SEGURANCA = {
 const DEBOUNCE = 250;
 const POLL = 1000;
 const PING = 15000;
+const LIMITE_FILA = 1024 * 1024; // cliente SSE que não lê: acima disso na fila, é desconectado
 const RECALCULO = 30; // a cada 30 verificações sem mudança, recalcula (expiração de 30 min depende do relógio)
 
 function nomesDe(raiz) {
@@ -110,8 +111,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   });
 
   let portaReal = 0;
-  const clientes = new Set(); // respostas SSE abertas
-  let ultimoJson = null; // último estado enviado por SSE
+  const clientes = new Map(); // resposta SSE aberta → último estado (JSON) enviado a ela
   let timer = null; // debounce
 
   const chaveOk = k => {
@@ -183,13 +183,9 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
     if (caminho === '/api/eventos') {
       res.writeHead(200, { ...SEGURANCA, 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      clientes.add(res);
+      clientes.set(res, null);
       req.on('close', () => clientes.delete(res));
-      try {
-        const js = JSON.stringify(estadoAtual());
-        ultimoJson = js;
-        res.write(`event: estado\ndata: ${js}\n\n`);
-      } catch { /* estado indisponível agora: virá na próxima mudança */ }
+      try { enviarEstado(res, JSON.stringify(estadoAtual())); } catch { /* estado indisponível agora: virá na próxima mudança */ }
       return;
     }
 
@@ -202,15 +198,34 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     }
   });
 
+  // requisição malformada: 400 com os mesmos cabeçalhos de segurança, e fecha o socket
+  servidor.on('clientError', (_erro, socket) => {
+    if (!socket.writable) return socket.destroy();
+    const corpo = 'requisição inválida';
+    const cab = { ...SEGURANCA, 'content-type': 'text/plain; charset=utf-8', 'content-length': Buffer.byteLength(corpo), connection: 'close' };
+    const linhas = Object.entries(cab).map(([k, v]) => `${k}: ${v}`).join('\r\n');
+    socket.end(`HTTP/1.1 400 Bad Request\r\n${linhas}\r\n\r\n${corpo}`, () => socket.destroy()); // destrói após enviar
+  });
+
   // --- atualização ao vivo ---
+  // escreve no cliente SSE; se ele não lê e a fila passou do limite, derruba a conexão
+  function escrever(c, dados) {
+    if (c.write(dados) || c.writableLength <= LIMITE_FILA) return;
+    clientes.delete(c);
+    c.destroy();
+  }
+  // cada cliente guarda o último estado que recebeu: um cliente novo não "consome" a mudança dos outros
+  function enviarEstado(c, js) {
+    if (clientes.get(c) === js) return;
+    clientes.set(c, js);
+    escrever(c, `event: estado\ndata: ${js}\n\n`);
+  }
   function enviar() {
     timer = null;
     if (clientes.size === 0) return;
     let js;
     try { js = JSON.stringify(estadoAtual()); } catch { return; }
-    if (js === ultimoJson) return;
-    ultimoJson = js;
-    for (const c of clientes) c.write(`event: estado\ndata: ${js}\n\n`);
+    for (const c of [...clientes.keys()]) enviarEstado(c, js);
   }
   function agendar() { if (!timer) timer = setTimeout(enviar, DEBOUNCE); }
 
@@ -242,7 +257,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     else if (++semMudanca >= RECALCULO) { semMudanca = 0; agendar(); }
   }
   const intervaloPoll = setInterval(verificar, POLL);
-  const intervaloPing = setInterval(() => { for (const c of clientes) c.write(': ping\n\n'); }, PING);
+  const intervaloPing = setInterval(() => { for (const c of [...clientes.keys()]) escrever(c, ': ping\n\n'); }, PING);
   intervaloPoll.unref(); intervaloPing.unref();
 
   let fechando = null;
@@ -252,7 +267,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     if (timer) { clearTimeout(timer); timer = null; }
     for (const w of observadores.values()) { try { w.close(); } catch { /* já fechado */ } }
     observadores.clear();
-    for (const c of clientes) c.end();
+    for (const c of clientes.keys()) c.end();
     clientes.clear();
     fechando = new Promise(ok => {
       servidor.close(() => ok());
