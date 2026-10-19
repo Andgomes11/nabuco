@@ -144,3 +144,15 @@ test('criterio --status falhou grava evidência (500 chars) no evento', () => {
   assert.equal(evs[0].dados.evidencia, 'X');
   assert.equal(evs[1].dados.evidencia.length, 500);
 });
+
+test('histórico global não gravável: comando da tarefa avisa e não falha (evento não duplica no retry)', () => {
+  assert.equal(run('nova', '--slug', 'x', '--tamanho', 'trivial', '--tipo', 'bug').code, 0);
+  const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  writeFileSync(join(dirname(proj), 'arquivo'), 'x');
+  home = join(dirname(proj), 'arquivo', 'sub'); // mkdir falha: o "pai" é um arquivo
+  const r = run('aprovar');
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.err, /histórico global/);
+  const tipos = linhas(join(proj, '.nabuco', 'tarefas', ativa, 'eventos.jsonl')).map(e => e.tipo);
+  assert.deepEqual(tipos, ['tarefa_criada', 'plano_aprovado']);
+});

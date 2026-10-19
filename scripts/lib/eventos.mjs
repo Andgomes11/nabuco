@@ -32,8 +32,14 @@ export function registrar({ tipo, papel = null, dados = {}, projeto, harness, ta
   };
   const linha = JSON.stringify(ev) + '\n';
   if (ativa?.dir) appendFileSync(join(ativa.dir, 'eventos.jsonl'), linha);
-  const home = nabucoHome();
-  mkdirSync(home, { recursive: true });
-  appendFileSync(join(home, 'historico.jsonl'), linha);
+  // Com o evento já na tarefa, falhar aqui só faria o Gerente repetir o comando (evento duplicado).
+  try {
+    const home = nabucoHome();
+    mkdirSync(home, { recursive: true });
+    appendFileSync(join(home, 'historico.jsonl'), linha);
+  } catch (e) {
+    if (!ativa?.dir) throw e;
+    process.stderr.write(`nabuco: evento gravado na tarefa, mas não no histórico global (${e.message}).\n`);
+  }
   return ev;
 }
