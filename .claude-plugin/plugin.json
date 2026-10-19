@@ -1,6 +1,6 @@
 {
   "name": "nabuco",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Time de funcionários-agentes que aprende com erros: Gerente, Dev, Debugger, Designer, DevOps, Docs, Arquiteto, Revisor, Segurança e Tester, com gate de evidência.",
   "author": { "name": "Anderson Gomes" },
   "homepage": "https://github.com/Andgomes11/nabuco",

@@ -63,9 +63,18 @@ test('hook: payloads incompletos, vazios ou inválidos nunca quebram', () => {
     assert.equal(r.status, 0, `input ${input}`);
     assert.equal(r.stdout, '');
   }
-  const semId = hist().find(e => e.tipo === 'agente_fim');
-  assert.equal(semId.papel, null);
-  assert.equal(semId.dados.duracao_ms, undefined);
+  // fim sem agent_type e sem início correspondente = agente interno do Claude Code: não grava
+  assert.equal(hist().filter(e => e.tipo === 'agente_fim').length, 0);
+});
+
+test('hook: fim sem agent_type só grava se houver o início, e herda o papel dele', () => {
+  run(['--hook'], JSON.stringify({ hook_event_name: 'SubagentStop', agent_id: 'interno', cwd: proj }));
+  assert.deepEqual(hist(), []);
+  run(['--hook'], JSON.stringify({ hook_event_name: 'SubagentStart', agent_type: 'nabuco:dev', agent_id: 'd1', cwd: proj }));
+  run(['--hook'], JSON.stringify({ hook_event_name: 'SubagentStop', agent_id: 'd1', cwd: proj }));
+  const f = hist().find(e => e.tipo === 'agente_fim');
+  assert.equal(f.papel, 'dev');
+  assert.equal(typeof f.dados.duracao_ms, 'number');
 });
 
 test('hook: hook_event_name herdado de Object.prototype ou payload null não registra nada', () => {

@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
-import { acharProjeto, lerAtiva, nomeTarefaValido } from './lib/caminhos.mjs';
+import { acharProjeto, lerAtiva, nomeTarefaValido, nabucoHome } from './lib/caminhos.mjs';
 import { registrar, detectarHarness } from './lib/eventos.mjs';
 import { carregarModelos, configDe } from './lib/modelos.mjs';
 import { PAPEIS } from './lib/constantes.mjs';
@@ -17,19 +17,28 @@ export function normalizarPapel(agentType) {
   return PAPEIS.includes(p) ? p : null;
 }
 
-function inicioCorrespondente(projeto, agentId) {
-  const ativa = lerAtiva(projeto);
-  if (!ativa || !agentId) return null;
-  const arq = join(ativa.dir, 'eventos.jsonl');
+const CAUDA = 2 * 1024 * 1024; // do histórico global, só o fim interessa: o início é recente
+
+function inicioEm(arq, agentId, cauda = false) {
   if (!existsSync(arq)) return null;
-  const linhas = readFileSync(arq, 'utf8').trim().split('\n').reverse();
-  for (const l of linhas) {
+  let txt = readFileSync(arq, 'utf8');
+  if (cauda && txt.length > CAUDA) txt = txt.slice(-CAUDA);
+  for (const l of txt.trim().split('\n').reverse()) {
     try {
       const e = JSON.parse(l);
       if (e.tipo === 'agente_inicio' && e.dados?.agent_id === agentId) return e;
-    } catch { /* linha corrompida: ignora */ }
+    } catch { /* linha corrompida (ou cortada pela cauda): ignora */ }
   }
   return null;
+}
+
+// início com o mesmo agent_id: primeiro na tarefa ativa, depois no histórico global
+function inicioCorrespondente(projeto, agentId, global = false) {
+  if (!agentId) return null;
+  const ativa = lerAtiva(projeto);
+  const naTarefa = ativa ? inicioEm(join(ativa.dir, 'eventos.jsonl'), agentId) : null;
+  if (naTarefa || !global) return naTarefa;
+  return inicioEm(join(nabucoHome(), 'historico.jsonl'), agentId, true);
 }
 
 function modoHook() {
@@ -39,16 +48,24 @@ function modoHook() {
   const tipo = MAPA[payload.hook_event_name];
   const projeto = acharProjeto(payload.cwd || process.cwd());
   const harness = detectarHarness(payload);
-  const papel = normalizarPapel(payload.agent_type);
+  let papel = normalizarPapel(payload.agent_type);
+  // fim sem agent_type: o Claude Code também dispara SubagentStop para agentes internos dele, que não
+  // têm início registrado. Só grava se houver o início (e herda o papel dele); senão é ruído no histórico
+  let ini = null;
+  if (tipo === 'agente_fim') {
+    ini = inicioCorrespondente(projeto, payload.agent_id, !payload.agent_type);
+    if (!payload.agent_type) {
+      if (!ini) return;
+      papel = ini.papel ?? null;
+    }
+  }
   const dados = {};
   if (payload.agent_id) dados.agent_id = payload.agent_id;
-  if (!papel && payload.agent_type) dados.agente = payload.agent_type;
+  const agente = payload.agent_type || ini?.dados?.agente;
+  if (!papel && agente) dados.agente = agente;
   const cfg = papel ? configDe(carregarModelos(RAIZ_PLUGIN), harness === 'codex' ? 'codex' : 'claude', papel) : null;
   if (cfg) { dados.modelo = cfg.model ?? 'herdado'; dados.effort = cfg.effort; }
-  if (tipo === 'agente_fim') {
-    const ini = inicioCorrespondente(projeto, payload.agent_id);
-    if (ini) dados.duracao_ms = Date.now() - Date.parse(ini.ts);
-  }
+  if (ini) dados.duracao_ms = Date.now() - Date.parse(ini.ts);
   registrar({ tipo, papel, dados, projeto, harness });
 }
 

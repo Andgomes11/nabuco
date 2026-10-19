@@ -40,6 +40,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 
 ## 4. Executar — um escritor por vez
 - Claude Code: subagente `nabuco:<papel>`. Codex: agente `nabuco-<papel>`.
+- **Torne a delegação visível** (o trabalho do subagente aparece recolhido na tela): antes de chamar, escreva ao usuário uma linha `→ <Papel>: <passo que ele vai fazer>`; ao receber, `← <Papel>: <o que entregou, em uma linha>`. Implementação é sempre do escritor — se você se pegar editando código de produto, pare e delegue.
 - Antes de delegar: `C buscar --papel <escritor> --texto="<sintoma ou pedido>" --arquivos="<arquivos envolvidos>"` (arquivos separados por vírgula).
 - Mensagem ao escritor: caminho da pasta da tarefa, "leia plano.md, criterios.json e progresso.md", o passo exato a fazer agora, o caminho do nabuco (`$NABUCO`) e a saída da busca sob o título "Lições do time" (se vier `(nenhuma lição relevante)`, omita a seção).
 - Ao receber a entrega: atualize `progresso.md` (Estado atual, Próximo passo, Decisões com autor), `T log --texto="<resumo>"` e, para cada lição em "lições usadas", `C voto --id <id> --util sim` (👍) ou `--util nao` (👎).
@@ -49,7 +50,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 
 ## 5. Checar — por risco
 - `trivial`: pule. `media`: revisor. `sensivel`: revisor, seguranca e tester **em paralelo**.
-- Rode `T fase checando`. Entregue a cada checador só: o `git diff` da tarefa, o plano e os critérios — nada do histórico. Instrução fixa: "reporte só o que afeta corretude, segurança ou os critérios; sem nada relevante, responda 'nada a reportar'".
+- Rode `T fase checando` e anuncie `→ checando com <Revisor, Segurança, Tester>`; ao receber, `← <Papel>: <n achados ou nada a reportar>`. Entregue a cada checador só: o `git diff` da tarefa, o plano e os critérios — nada do histórico. Instrução fixa: "reporte só o que afeta corretude, segurança ou os critérios; sem nada relevante, responda 'nada a reportar'".
 - Claude Code: se `~/.nabuco/config.json` tiver `"checadores_locais": true`, use `nabuco-<papel>` em vez de `nabuco:<papel>`.
 - Codex: depois de cada checador, rode `git status --porcelain` — se um checador alterou arquivos, mostre ao usuário antes de seguir.
 - Registre cada achado: `E achado --papel <papel> --dados='{"severidade":"alta|media|baixa","resumo":"..."}'`.
