@@ -36,7 +36,7 @@
 - `cerebro sinais` sem tarefa ativa: no mesmo dia, desempata pelo `criada` do `estado.json`, e não pela ordem alfabética do slug.
 - README: instalação com `codex plugin add`, `windows.sandbox`, `EPERM` do `$setup` e `codex.cmd`.
 
-## Comportamentos do Gerente no Codex (sem correção ainda)
+## Comportamentos do time no Codex
 
-- Editou `criterios.json` com `apply_patch` para trocar o comando de verificação (a CLI não tem como editar um critério), sem gerar evento.
-- Para contornar o sandbox, alterou o `package.json` do projeto (`--test-isolation=none`) e, quando `~/.nabuco` não estava gravável, apontou `NABUCO_HOME` para `.nabuco/runtime` por conta própria, em vez de perguntar.
+- O Gerente editou `criterios.json` com `apply_patch` para trocar o comando de verificação (a CLI não tinha como editar um critério), sem gerar evento. → Novo `T criterio-editar`: livre antes do plano aprovado; depois, só com `--ok-usuario --motivo`. Verificação nova volta o critério para pendente. Tudo registrado no evento `criterio` (`acao: "editado"`). A skill `tarefa` proíbe editar `estado.json`, `criterios.json` e `eventos.jsonl` à mão.
+- Para contornar o sandbox, o Dev alterou o `package.json` do projeto (`--test-isolation=none`). Quando `~/.nabuco` não estava gravável, o Gerente apontou `NABUCO_HOME` para `.nabuco/runtime` por conta própria, em vez de perguntar. → Regra na skill `tarefa` e nos escritores (dev, debugger, designer, devops): bloqueio de ambiente não se contorna; vai para **bloqueios** ou `aguardando_usuario`. A skill `setup` orienta a rodar o `setup.mjs` fora do Codex quando der `EPERM`.
