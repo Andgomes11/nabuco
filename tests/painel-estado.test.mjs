@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { montarEstado, FUNCIONARIOS, NIVEL_NUM } from '../scripts/lib/painel-estado.mjs';
+import { montarEstado, FUNCIONARIOS, NIVEL_NUM, MAX_LINHA } from '../scripts/lib/painel-estado.mjs';
 
 const AGORA = Date.UTC(2026, 5, 1, 12, 0, 0);
 const min = m => new Date(AGORA - m * 60000).toISOString();
@@ -72,7 +72,7 @@ test('tarefa e gate', () => {
   assert.deepEqual(est.tarefa, {
     nome: 'Minha tarefa', slug: 'minha', fase: 'executando', tamanho: 'media', tipo: 'feature',
     gate: { passou: 1, total: 3, pendencias: [{ id: 'c2', motivo: 'status "pendente"' }, { id: 'c3', motivo: 'passou sem evidência registrada' }] },
-    aviso: null,
+    aviso: null, linha: [],
   });
   const vazio = montarEstado({ ...base, eventos: [], tarefa: tar('executando') });
   assert.deepEqual(vazio.tarefa.gate, { passou: 0, total: 0, pendencias: [] });
@@ -175,4 +175,26 @@ test('limite do plano: null sem amostras; com tarefa, consumo desde a criação 
   assert.equal(est.limite.h5.pct, 16);
   assert.deepEqual(est.limite.tarefa, { h5: 6, sem: null });
   assert.equal(montarEstado({ ...base, eventos: [], limite }).limite.tarefa, null);
+});
+
+test('linha do tempo: eventos da tarefa enxutos, sem ruído de agente interno, no máximo MAX_LINHA', () => {
+  const evs = [
+    ev('fase', null, 9, { de: 'planejando', para: 'executando', extra: { grande: 1 } }),
+    ev('delegacao', null, 8, { para: 'dev', passo: 'x'.repeat(400) }),
+    ev('agente_inicio', 'dev', 8, { agent_id: 'a', modelo: 'opus' }),
+    ev('agente_fim', null, 7, { agent_id: 'interno' }),
+    ev('agente_inicio', null, 6, { agente: 'Explore' }),
+    ev('gate_bloqueou', null, 5, { pendencias: [{ id: 'c1' }, { id: 'c2' }] }),
+  ];
+  const l = montarEstado({ ...base, eventos: [], tarefa: tar('executando', evs) }).tarefa.linha;
+  assert.deepEqual(l.map(e => e.tipo), ['fase', 'delegacao', 'agente_inicio', 'agente_inicio', 'gate_bloqueou']);
+  assert.deepEqual(l[0].dados, { de: 'planejando', para: 'executando' });
+  assert.equal(l[1].dados.passo.length, 300);
+  assert.equal(l[1].papel, null);
+  assert.equal(l[3].dados.agente, 'Explore');
+  assert.equal(l[4].dados.pendencias, 2);
+  const muitos = Array.from({ length: 120 }, (_, i) => ev('nota', null, 120 - i, { texto: String(i) }));
+  const m = montarEstado({ ...base, eventos: [], tarefa: tar('executando', muitos) }).tarefa.linha;
+  assert.equal(m.length, MAX_LINHA);
+  assert.equal(m[m.length - 1].dados.texto, '119');
 });

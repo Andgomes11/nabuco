@@ -31,7 +31,14 @@
 
 <main class="principal">
   <h1 class="so-leitor">Monitores do time</h1>
-  <ul id="grade" class="grade" aria-busy="true"></ul>
+  <div class="area">
+    <ul id="grade" class="grade" aria-busy="true"></ul>
+    <aside class="lateral" aria-labelledby="lt-titulo">
+      <h2 id="lt-titulo" class="rotulo lt-titulo">linha do tempo</h2>
+      <p id="linha-vazia" class="linha-vazia">nenhuma tarefa ativa</p>
+      <ol id="linha" class="linha" aria-live="off"></ol>
+    </aside>
+  </div>
   <p id="erro-geral" class="erro-geral" role="alert" hidden></p>
 </main>
 

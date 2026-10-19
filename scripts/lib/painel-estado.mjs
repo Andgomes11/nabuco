@@ -37,6 +37,28 @@ function agenteAberto(meus) {
   });
 }
 
+// linha do tempo da tarefa ativa: só os campos que o painel mostra, com texto livre cortado
+export const MAX_LINHA = 80;
+const CAMPOS = ['de', 'para', 'motivo', 'tamanho', 'tipo', 'id', 'acao', 'status', 'evidencia', 'severidade', 'resumo', 'passo', 'texto', 'duracao_ms', 'modelo', 'effort', 'agente', 'bloqueios'];
+function enxuto(dados) {
+  const d = dados && typeof dados === 'object' ? dados : {};
+  const r = {};
+  for (const k of CAMPOS) {
+    const x = d[k];
+    if (typeof x === 'string') r[k] = x.slice(0, 300);
+    else if (typeof x === 'number' && Number.isFinite(x)) r[k] = x;
+  }
+  if (Array.isArray(d.pendencias)) r.pendencias = d.pendencias.length;
+  return r;
+}
+function linhaDoTempo(evs) {
+  return evs
+    // agente sem papel e sem nome: ruído (agente interno do harness)
+    .filter(e => typeof e.tipo === 'string' && !(e.tipo.startsWith('agente_') && !e.papel && !e.dados?.agente))
+    .slice(-MAX_LINHA)
+    .map(e => ({ ts: typeof e.ts === 'string' ? e.ts : null, tipo: e.tipo, papel: typeof e.papel === 'string' ? e.papel : null, dados: enxuto(e.dados) }));
+}
+
 export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora }) {
   const evs = lista(eventos);
   const evsTarefa = lista(tarefa?.eventos);
@@ -91,6 +113,7 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite
       },
       // leitura degradada (ex.: criterios.json ilegível): o cabeçalho avisa em vez de esconder
       aviso: typeof tarefa.aviso === 'string' && tarefa.aviso ? tarefa.aviso : null,
+      linha: linhaDoTempo(evsTarefa),
     };
   }
   // versao usa eventos.length cru de propósito: são índices no arquivo de histórico

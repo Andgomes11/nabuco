@@ -59,9 +59,9 @@ test('ciclo completo: nova → critério → aprovar → passou → concluir', (
   assert.equal(JSON.parse(run('status').out).ativa, null);
 
   const tipos = linhas(join(dir, 'eventos.jsonl')).map(e => e.tipo);
-  assert.deepEqual(tipos, ['tarefa_criada', 'criterio', 'plano_aprovado', 'criterio', 'tarefa_fechada']);
+  assert.deepEqual(tipos, ['tarefa_criada', 'criterio', 'plano_aprovado', 'criterio', 'nota', 'tarefa_fechada']);
   const hist = linhas(join(home, 'historico.jsonl'));
-  assert.equal(hist.length, 5);
+  assert.equal(hist.length, 6);
   assert.equal(hist[0].harness, 'teste');
   assert.equal(hist[0].projeto, 'Nova pasta');
 });
@@ -195,4 +195,16 @@ test('criterio-editar: sem campo para mudar → exit 2; id inexistente → exit 
   run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
   assert.equal(run('criterio-editar', '--id', 'c1').code, 2);
   assert.equal(run('criterio-editar', '--id', 'c9', '--descricao=x').code, 1);
+});
+
+test('delegar: registra o passo com o destino em dados.para (papel nulo, para não contar como participação)', () => {
+  assert.equal(run('delegar', '--papel', 'dev', '--passo=x').code, 1); // sem tarefa ativa
+  const dir = run('nova', '--slug', 'd', '--tamanho', 'trivial', '--tipo', 'feature').out.trim();
+  assert.equal(run('delegar', '--papel', 'gerente', '--passo=x').code, 2);
+  assert.equal(run('delegar', '--papel', 'dev').code, 2);
+  const r = run('delegar', '--papel', 'dev', '--passo=implementar o login');
+  assert.equal(r.code, 0, r.err);
+  const e = linhas(join(dir, 'eventos.jsonl')).find(x => x.tipo === 'delegacao');
+  assert.equal(e.papel, null);
+  assert.deepEqual(e.dados, { para: 'dev', passo: 'implementar o login' });
 });

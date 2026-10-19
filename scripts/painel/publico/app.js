@@ -15,7 +15,7 @@ try { modelo = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`); } ca
 }
 const {
   aparenciaMonitor, rotuloNivel, formatarAtributo, formatarIndicador,
-  seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, resumoLimite, INDICADORES, ATRIBUTOS,
+  seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, resumoLimite, textoEvento, INDICADORES, ATRIBUTOS,
 } = modelo;
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
 
@@ -349,6 +349,32 @@ function renderizarLimite(l) {
   t.hidden = !r.tarefa;
 }
 
+// ---------- linha do tempo ----------
+const horaSeg = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+let linhaDesenhada = null; // JSON da última linha desenhada: só redesenha quando muda
+function renderizarLinha(e) {
+  const linha = Array.isArray(e.tarefa?.linha) ? e.tarefa.linha : [];
+  const js = JSON.stringify(linha);
+  if (js === linhaDesenhada) return;
+  linhaDesenhada = js;
+  const nomes = new Map(e.funcionarios.map(f => [f.papel, f.nome]));
+  const nomeDe = p => nomes.get(p) ?? p ?? '?';
+  $('linha-vazia').hidden = Boolean(e.tarefa && linha.length);
+  $('linha-vazia').textContent = e.tarefa ? 'nenhum evento ainda' : 'nenhuma tarefa ativa';
+  const lista = $('linha');
+  lista.replaceChildren();
+  for (const ev of [...linha].reverse()) { // mais recente primeiro
+    const { texto, classe } = textoEvento(ev, nomeDe);
+    const li = el('li', 'lt-item');
+    li.dataset.classe = classe;
+    const d = new Date(ev.ts);
+    const t = el('time', 'lt-hora', Number.isNaN(d.getTime()) ? '--:--' : horaSeg.format(d));
+    if (!Number.isNaN(d.getTime())) t.dateTime = ev.ts;
+    li.append(t, el('span', 'lt-texto', texto));
+    lista.append(li);
+  }
+}
+
 // só a situação da conexão é anunciada; a contagem de eventos muda o tempo todo e fica fora da região viva
 function definirConexao(situacao, texto) {
   const c = $('conexao');
@@ -367,6 +393,7 @@ function aplicarEstado(e) {
   $('erro-geral').hidden = true;
   renderizarCabecalho(e);
   renderizarLimite(e.limite);
+  renderizarLinha(e);
   renderizarMonitores(e.funcionarios);
   if ($('conexao').dataset.estado === 'ao-vivo') definirConexao('ao-vivo', textoAoVivo());
   if (dossieAberto && versaoAnterior !== undefined && e.versao !== dossieAberto.versao) $('d-aviso').hidden = false;

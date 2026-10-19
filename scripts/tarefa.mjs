@@ -7,7 +7,7 @@ import { lerJson, escreverJson } from './lib/json.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { registrar } from './lib/eventos.mjs';
 import { slugify } from './lib/texto.mjs';
-import { TAMANHOS, TIPOS, FASES } from './lib/constantes.mjs';
+import { TAMANHOS, TIPOS, FASES, PAPEIS } from './lib/constantes.mjs';
 
 class ErroUso extends Error {}
 class ErroRegra extends Error {}
@@ -148,8 +148,21 @@ const comandos = {
   log() {
     const { values: v } = opcoes({ texto: { type: 'string' } });
     const a = exigirAtiva();
-    appendFileSync(join(a.dir, 'progresso.md'), `- ${agora()} ${exigir(v.texto, 'texto')}\n`);
+    const texto = exigir(v.texto, 'texto');
+    appendFileSync(join(a.dir, 'progresso.md'), `- ${agora()} ${texto}\n`);
+    registrar({ tipo: 'nota', dados: { texto: texto.slice(0, 500) }, projeto }); // linha do tempo do painel
     console.log('registrado no progresso.md');
+  },
+
+  // o passo entregue a um funcionário, para a linha do tempo do painel. O destino vai em dados.para
+  // (não em papel): as métricas contam participação por papel, e delegar não é participar
+  delegar() {
+    const { values: v } = opcoes({ papel: { type: 'string' }, passo: { type: 'string' } });
+    exigirAtiva();
+    const para = exigir(v.papel, 'papel');
+    if (!PAPEIS.includes(para)) throw new ErroUso(`--papel inválido; use: ${PAPEIS.join(', ')}`);
+    registrar({ tipo: 'delegacao', dados: { para, passo: exigir(v.passo, 'passo').slice(0, 500) }, projeto });
+    console.log(`delegação para ${para} registrada`);
   },
 
   concluir() {

@@ -130,3 +130,17 @@ test('aparenciaMonitor: conectado segue o estado; servidor encerrado congela tud
     assert.deepEqual(aparenciaMonitor(f, false), { cor: 'desconectado', vel: 0, rotulo: 'sem conexão' });
   }
 });
+
+test('textoEvento: frases da linha do tempo e classes', async () => {
+  const { textoEvento } = await import('../scripts/painel/publico/modelo.mjs');
+  const nome = p => ({ dev: 'Dev', seguranca: 'Segurança' })[p] ?? p;
+  assert.deepEqual(textoEvento({ tipo: 'delegacao', dados: { para: 'dev', passo: 'criar rota' } }, nome), { texto: '→ Dev: criar rota', classe: 'agente' });
+  assert.equal(textoEvento({ tipo: 'agente_fim', papel: 'dev', dados: { duracao_ms: 180000 } }, nome).texto, 'Dev terminou em 3 min');
+  assert.equal(textoEvento({ tipo: 'agente_inicio', papel: null, dados: { agente: 'Explore' } }, nome).texto, 'agente Explore começou');
+  assert.deepEqual(textoEvento({ tipo: 'achado', papel: 'seguranca', dados: { severidade: 'alta', resumo: 'zip bomb' } }, nome), { texto: 'Segurança achou (alta): zip bomb', classe: 'alerta' });
+  assert.equal(textoEvento({ tipo: 'criterio', dados: { id: 'c1', status: 'passou' } }).classe, 'ok');
+  assert.equal(textoEvento({ tipo: 'fase', dados: { de: 'executando', para: 'aguardando_usuario', motivo: 'dúvida' } }).texto, 'fase: executando → aguardando usuario · dúvida');
+  assert.equal(textoEvento({ tipo: 'gate_bloqueou', dados: { pendencias: 2 } }).texto, 'gate segurou o fim do turno (2 pendência(s))');
+  assert.equal(textoEvento({ tipo: 'licao_usada', papel: 'dev', dados: {} }).texto, 'licao usada · dev');
+  assert.equal(textoEvento(null).texto, '?');
+});

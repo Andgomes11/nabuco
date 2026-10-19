@@ -114,3 +114,31 @@ export function resumoLimite(l) {
     atualizado: typeof l.atualizado === 'string' ? l.atualizado : null,
   };
 }
+
+// linha do tempo: texto de cada evento da tarefa. `nomeDe(papel)` dá o nome de exibição
+const FASE = f => (typeof f === 'string' ? f.replaceAll('_', ' ') : '?');
+const minutos = ms => (ms < 60000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.round(ms / 60000)} min`);
+export function textoEvento(e, nomeDe = p => p) {
+  const d = e?.dados ?? {};
+  const quem = e?.papel ? nomeDe(e.papel) : (d.agente ? `agente ${d.agente}` : null);
+  switch (e?.tipo) {
+    case 'tarefa_criada': return { texto: `tarefa criada (${d.tamanho ?? '?'}, ${d.tipo ?? '?'})`, classe: 'marco' };
+    case 'fase': return { texto: `fase: ${FASE(d.de)} → ${FASE(d.para)}${d.motivo ? ` · ${d.motivo}` : ''}`, classe: d.para?.startsWith('aguardando') ? 'espera' : 'marco' };
+    case 'plano_aprovado': return { texto: 'plano aprovado', classe: 'ok' };
+    case 'delegacao': return { texto: `→ ${nomeDe(d.para)}: ${d.passo ?? ''}`, classe: 'agente' };
+    case 'agente_inicio': return { texto: `${quem ?? 'agente'} começou${d.modelo ? ` (${d.modelo}${d.effort ? `, ${d.effort}` : ''})` : ''}`, classe: 'agente' };
+    case 'agente_fim': return { texto: `${quem ?? 'agente'} terminou${finito(d.duracao_ms) ? ` em ${minutos(d.duracao_ms)}` : ''}`, classe: 'agente' };
+    case 'nota': return { texto: d.texto ?? '', classe: 'nota' };
+    case 'criterio':
+      if (d.status) return { texto: `critério ${d.id} ${d.status}${d.evidencia ? ` · ${d.evidencia}` : ''}`, classe: d.status === 'passou' ? 'ok' : d.status === 'falhou' ? 'alerta' : 'nota' };
+      return { texto: `critério ${d.id} ${d.acao === 'editado' ? 'editado' : 'criado'}${d.motivo ? ` · ${d.motivo}` : ''}`, classe: 'nota' };
+    case 'achado': return { texto: `${quem ?? '?'} achou (${d.severidade ?? '?'}): ${d.resumo ?? ''}`, classe: d.severidade === 'alta' ? 'alerta' : 'espera' };
+    case 'rodada_correcao': return { texto: `rodada de correção → ${quem ?? '?'}`, classe: 'espera' };
+    case 'gate_bloqueou': return { texto: `gate segurou o fim do turno (${d.pendencias ?? 0} pendência(s))`, classe: 'alerta' };
+    case 'gate_liberado': return { texto: 'gate liberou: aguardando sua decisão', classe: 'espera' };
+    case 'tarefa_fechada': return { texto: 'tarefa concluída', classe: 'ok' };
+    case 'tarefa_abandonada': return { texto: `tarefa abandonada${d.motivo ? ` · ${d.motivo}` : ''}`, classe: 'alerta' };
+    case 'correcao_usuario': return { texto: `você apontou um problema${quem ? ` (${quem})` : ''}${d.resumo ? `: ${d.resumo}` : ''}`, classe: 'alerta' };
+    default: return { texto: `${String(e?.tipo ?? '?').replaceAll('_', ' ')}${quem ? ` · ${quem}` : ''}`, classe: 'nota' };
+  }
+}
