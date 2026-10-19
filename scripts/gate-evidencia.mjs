@@ -17,6 +17,12 @@ try {
   const ativa = lerAtiva(projeto);
   if (!ativa) process.exit(0);
 
+  // tarefa com dono (sessão que rodou a CLI de tarefa, ver dono.mjs): outra sessão no mesmo projeto
+  // não é do Gerente dela — não bloqueia nem mexe no contador
+  let dono = null;
+  try { dono = readFileSync(join(ativa.dir, 'sessao'), 'utf8').trim() || null; } catch { /* sem dono: vale para todos */ }
+  if (dono && typeof payload.session_id === 'string' && payload.session_id && payload.session_id !== dono) process.exit(0);
+
   const arqEstado = join(ativa.dir, 'estado.json');
   const arqCriterios = join(ativa.dir, 'criterios.json');
   let estado, criterios, marca;

@@ -84,7 +84,7 @@ test('janela: so tarefas fechadas, ordenadas por ts', () => {
 test('sem dados: todos os papeis presentes, incl. gerente', () => {
   const m = calcularMetricas([]);
   assert.equal(Object.keys(m).length, 10);
-  assert.deepEqual(m.gerente, { amostra: 0, aceitacao_1a: null, tentativas_ate_verde: null, recorrencia: null, turnos_ate_causa: null, escapes: null, pct_util: null, promocoes: 0, score: null, nivel: null, provisorio: true });
+  assert.deepEqual(m.gerente, { amostra: 0, aceitacao_1a: null, tentativas_ate_verde: null, recorrencia: null, turnos_ate_causa: null, escapes: null, achados_uteis: null, pct_util: null, promocoes: 0, score: null, nivel: null, provisorio: true });
 });
 
 test('provisorio: amostra 9 vs 10', () => {
@@ -124,11 +124,12 @@ test('lerHistorico: ausente => [], ignora invalidas e sem tipo', () => {
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
-test('checador não ganha nível só por participar: escapes só existe para escritores (achado final #3)', () => {
+test('checador não ganha nível só por participar: escapes contam, mas só pesam com achados avaliáveis (achado final #3)', () => {
   const evs = muitas(1, 12).concat(Array.from({ length: 12 }, (_, i) => ev('agente_inicio', `t${i + 1}`, 'revisor')));
   const m = calcularMetricas(evs);
   assert.equal(m.revisor.amostra, 12);
-  assert.equal(m.revisor.escapes, null);
+  assert.equal(m.revisor.escapes, 0);
+  assert.equal(m.revisor.achados_uteis, null);
   assert.equal(m.revisor.score, null);
   assert.equal(m.revisor.nivel, null);
   assert.equal(m.gerente.escapes, null);
@@ -156,7 +157,7 @@ test('fontes: índices dos eventos que alimentaram cada indicador', () => {
   assert.deepEqual(m.dev.fontes.escapes, []);
   assert.deepEqual(m.revisor.fontes.amostra, [7]);
   assert.deepEqual(m.revisor.fontes.aceitacao_1a, []);
-  assert.deepEqual(Object.keys(m.dev.fontes).sort(), ['aceitacao_1a', 'amostra', 'escapes', 'pct_util', 'promocoes', 'recorrencia', 'tentativas_ate_verde', 'turnos_ate_causa']);
+  assert.deepEqual(Object.keys(m.dev.fontes).sort(), ['aceitacao_1a', 'achados_uteis', 'amostra', 'escapes', 'pct_util', 'promocoes', 'recorrencia', 'tentativas_ate_verde', 'turnos_ate_causa']);
   // sem a opção: mesma saída de antes, sem `fontes`
   const sem = calcularMetricas(evs);
   assert.equal('fontes' in sem.dev, false);
@@ -235,4 +236,24 @@ test('leitorHistorico: arquivo que encolheu ou foi regravado => releitura comple
     writeFileSync(arq, linhaEv(8));
     assert.deepEqual(ler().map(e => e.tipo), ['t8']);
   } finally { rmSync(d, { recursive: true, force: true }); }
+});
+
+test('checador: achados que levaram a correção contam como acerto; escape depois da revisão pesa contra', () => {
+  const t = (n, { util = true, escape = false } = {}) => {
+    const id = `c${n}`;
+    const e = [ev('agente_inicio', id, 'dev'), ev('agente_inicio', id, 'revisor'), ev('achado', id, 'revisor', { severidade: 'alta', resumo: 'x' })];
+    if (util) e.push(ev('rodada_correcao', id, 'dev'));
+    e.push(ev('tarefa_fechada', id, 'gerente'));
+    if (escape) e.push(ev('correcao_usuario', id, 'dev', { apos_pronto: true }));
+    return e;
+  };
+  const m = calcularMetricas([...t(1), ...t(2), ...t(3, { util: false }), ...t(4, { escape: true })]);
+  assert.equal(m.revisor.achados_uteis, 0.75);
+  assert.equal(m.revisor.escapes, 1);
+  assert.equal(m.revisor.score, (0.75 + (1 - 1 / 4)) / 2);
+  // achado baixo não conta; achado antes de nenhuma correção = 0
+  const baixo = calcularMetricas([ev('agente_inicio', 'b', 'revisor'), ev('achado', 'b', 'revisor', { severidade: 'baixa' }), ev('rodada_correcao', 'b', 'dev'), ev('tarefa_fechada', 'b', 'gerente')]);
+  assert.equal(baixo.revisor.achados_uteis, null);
+  const fontes = calcularMetricas(t(5), { fontes: true }).revisor.fontes.achados_uteis;
+  assert.equal(fontes.length, 2); // o achado e a rodada que ele gerou
 });

@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname, basename } from 'node:path';
 import { acharProjeto, nabucoHome, dirTarefas, lerAtiva, nomeTarefaValido } from './lib/caminhos.mjs';
 import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
-import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA } from './lib/constantes.mjs';
+import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA, LIMIAR_SIMILAR, AMOSTRA_NIVEL, MAX_BUSCA, MAX_CASOS_BUSCA } from './lib/constantes.mjs';
 import { similaridade, normalizarTag } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
 import { calcularMetricas, lerHistorico } from './lib/metricas.mjs';
 import { commitHome } from './lib/git.mjs';
-import { ranquear } from './lib/busca.mjs';
+import { ranquear, ranquearCasos } from './lib/busca.mjs';
 import { serializarBloco, substituirBloco, acrescentarBloco, proximoId, lerLicoes } from './lib/licoes.mjs';
 import {
   ESCOPOS, hoje, arquivoLicoes, arquivoMorto, lerArquivo, gravarArquivo, blocosDe, ativas,
@@ -44,6 +44,41 @@ function jaccardConj(A, B) {
   return inter / (A.size + B.size - inter);
 }
 const scoreSimilar = (a, b) => Math.max(jaccardConj(conjTags(a), conjTags(b)), similaridade(textoSimilar(a), textoSimilar(b)));
+
+// evidência de lição: caminho puro ou link markdown → casos/<papel>/<arquivo>.md
+const caminhoCaso = e => String(e).match(/casos\/[^\s)\]]+/)?.[0] ?? String(e).trim();
+
+// pasta da tarefa de um rascunho da retro (<tarefa>/retro/caso-N.json); fora disso, a tarefa ativa
+function tarefaDoRascunho(arq) {
+  const pasta = dirname(dirname(resolve(arq)));
+  if (basename(dirname(resolve(arq))) === 'retro' && dirname(pasta) === resolve(dirTarefas(projeto))) return pasta;
+  return lerAtiva(projeto)?.dir ?? null;
+}
+function eventosDaTarefa(dir) {
+  if (!dir || !existsSync(join(dir, 'eventos.jsonl'))) return [];
+  return readFileSync(join(dir, 'eventos.jsonl'), 'utf8').split(/\r?\n/).flatMap(l => {
+    try { const e = JSON.parse(l); return e && typeof e === 'object' ? [e] : []; } catch { return []; }
+  });
+}
+
+// recorrência: o caso novo se parece com a evidência de uma lição que o time recebeu nesta mesma tarefa
+// (entregue pela busca ou votada) — a lição existia e o erro voltou
+function recorrenciaAutomatica(c, dirTarefa) {
+  const ids = new Set();
+  for (const e of eventosDaTarefa(dirTarefa)) {
+    if (e.tipo === 'licoes_entregues' && Array.isArray(e.dados?.ids)) e.dados.ids.forEach(id => ids.add(id));
+    if (e.tipo === 'licao_usada' && typeof e.dados?.id === 'string') ids.add(e.dados.id);
+  }
+  if (!ids.size) return null;
+  const casos = lerCasos(nabucoHome());
+  for (const id of ids) {
+    const achada = acharLicao(id, projeto);
+    if (!achada) continue;
+    const evid = new Set(achada.bloco.evidencia.map(x => caminhoCaso(x)));
+    if (casos.some(x => evid.has(x.arquivo) && scoreSimilar(c, x) >= LIMIAR_SIMILAR)) return id;
+  }
+  return null;
+}
 
 // ---------- lições ----------
 const CAMPOS_TEXTO = ['titulo', 'gatilho', 'expectativa', 'faca', 'porque'];
@@ -121,7 +156,8 @@ function tabelaMetricas(m, papeis) {
   const cab = ['papel', 'nível', 'amostra', 'aceit. 1ª', 'tentativas', 'recorr.', 'turnos', 'escapes', 'útil', 'promoções'];
   const linhas = papeis.map(p => {
     const x = m[p];
-    const nivel = x.nivel === null ? '—' : x.provisorio ? `${x.nivel} (provisório)` : x.nivel;
+    const nivel = x.amostra > 0 && x.amostra < AMOSTRA_NIVEL ? `em avaliação (${x.amostra}/${AMOSTRA_NIVEL})`
+      : x.nivel === null ? '—' : x.provisorio ? `${x.nivel} (provisório)` : x.nivel;
     return [p, nivel, String(x.amostra), pct(x.aceitacao_1a), dec(x.tentativas_ate_verde), pct(x.recorrencia), dec(x.turnos_ate_causa), x.escapes === null ? '—' : String(x.escapes), pct(x.pct_util), String(x.promocoes)];
   });
   const larg = cab.map((c, i) => Math.max(c.length, ...linhas.map(l => l[i].length)));
@@ -135,6 +171,10 @@ const comandos = {
     const c = lerEntrada(v.de);
     const erros = validarCaso(c);
     if (erros.length) throw new ErroRegra('caso inválido:\n' + erros.map(e => `  - ${e}`).join('\n'));
+    if (!c.recorrencia_de) {
+      const id = recorrenciaAutomatica(c, tarefaDoRascunho(v.de));
+      if (id) { c.recorrencia_de = id; process.stderr.write(`nabuco: recorrência detectada — a lição ${id} foi entregue nesta tarefa e o erro voltou.\n`); }
+    }
     const home = nabucoHome();
     const arquivo = gravarCaso(home, c);
     registrar({
@@ -161,11 +201,16 @@ const comandos = {
     const similares = lerCasos(nabucoHome(), c.papel)
       .filter(x => !igual(x))
       .map(x => ({ arquivo: x.arquivo, score: scoreSimilar(c, x) }))
-      .filter(x => x.score >= 0.4)
+      .filter(x => x.score >= LIMIAR_SIMILAR)
       .sort((a, b) => b.score - a.score)
       .map(x => ({ ...x, score: Number(x.score.toFixed(3)) }));
-    const destilar = similares.length >= 1 || (Number.isInteger(c.turnos) && c.turnos >= CUSTO_ALTO_TURNOS);
-    console.log(JSON.stringify({ similares, destilar }, null, 2));
+    // não espera o erro se repetir: um achado alto/médio de checador ou um sinal precoce já é o que ensinar
+    const motivos = [];
+    if (similares.length) motivos.push('casos_similares');
+    if (Number.isInteger(c.turnos) && c.turnos >= CUSTO_ALTO_TURNOS) motivos.push('custo_alto');
+    if (c.severidade === 'alta' || c.severidade === 'media') motivos.push(`achado_${c.severidade}`);
+    if (typeof c.sinal_precoce === 'string' && c.sinal_precoce.trim()) motivos.push('sinal_precoce');
+    console.log(JSON.stringify({ similares, destilar: motivos.length > 0, motivos }, null, 2));
   },
 
   'licao-add'() {
@@ -292,12 +337,24 @@ const comandos = {
     if (!PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
     const arquivos = (v.arquivos ?? '').split(',').map(x => x.trim()).filter(Boolean);
     const r = ranquear([...blocosDe('projeto', v.papel, projeto), ...blocosDe('global', v.papel, projeto)], { texto: v.texto, arquivos, hoje: hoje() });
+    // faltando lições, completa com casos do papel (os que já são evidência das lições achadas ficam de fora)
+    const jaCitados = new Set(r.flatMap(x => x.bloco.evidencia.map(e => caminhoCaso(e))));
+    const vagas = Math.min(MAX_CASOS_BUSCA, MAX_BUSCA - r.length);
+    const casos = vagas > 0 ? ranquearCasos(lerCasos(nabucoHome(), v.papel).filter(c => !jaCitados.has(c.arquivo)), { texto: v.texto, arquivos }).slice(0, vagas) : [];
     if (v.json) { console.log(JSON.stringify(r.map(x => ({ id: x.bloco.id, score: x.score })))); return; }
-    if (!r.length) { console.log('(nenhuma lição relevante)'); return; }
-    console.log(r.map(({ bloco }) => {
+    if (!r.length && !casos.length) { console.log('(nenhuma lição relevante)'); return; }
+    // registra o que o time recebeu: é o que permite detectar recorrência (lição entregue e erro de novo)
+    const ativa = lerAtiva(projeto);
+    if (ativa && r.length) registrar({ tipo: 'licoes_entregues', dados: { para: v.papel, ids: r.map(x => x.bloco.id) }, projeto });
+    const partes = r.map(({ bloco }) => {
       const caso = bloco.evidencia[0];
       return serializarBloco(bloco) + (caso ? `caso: ${caso}\n` : '');
-    }).join('\n'));
+    });
+    if (casos.length) {
+      partes.push('### Casos parecidos (ainda sem lição)\n' + casos.map(({ caso: c }) =>
+        `- ${c.arquivo}\n  sintoma: ${c.sintoma ?? ''}\n  causa raiz: ${c.causa_raiz ?? ''}${c.sinal_precoce ? `\n  sinal precoce: ${c.sinal_precoce}` : ''}`).join('\n') + '\n');
+    }
+    console.log(partes.join('\n'));
   },
 
   sinais() {

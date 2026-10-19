@@ -13,3 +13,7 @@ export const DIAS_SEM_USO = 90;
 export const MIN_POSITIVOS_PROMOCAO = 5;
 export const AMOSTRA_MINIMA = 10;
 export const JANELA_TAREFAS = 30;
+export const AMOSTRA_NIVEL = 3; // abaixo disso o nível não aparece (painel, dossiê, CLI): "em avaliação"
+export const SEVERIDADES = ['alta', 'media', 'baixa'];
+export const LIMIAR_SIMILAR = 0.4;
+export const MAX_CASOS_BUSCA = 2; // casos que completam a busca quando faltam lições relevantes

@@ -2,6 +2,7 @@ import { calcularMetricas } from './metricas.mjs';
 import { PAPEIS } from './constantes.mjs';
 import { pendencias } from './criterios.mjs';
 import { resumirLimite } from './limite.mjs';
+import { AMOSTRA_NIVEL } from './constantes.mjs';
 
 export const FUNCIONARIOS = ['gerente', ...PAPEIS];
 export const NIVEL_NUM = { 'Júnior': 1, 'Pleno': 2, 'Sênior': 3, 'Especialista': 4 };
@@ -83,13 +84,15 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite
     }
     const atividade = estado === 'trabalhando' ? Math.min(1, recentes5 / 10) : 0;
     const m = metricas[papel] ?? {};
-    const nivel = m.nivel ?? null;
+    const amostra = Number.isInteger(m.amostra) ? m.amostra : 0;
+    // com menos de AMOSTRA_NIVEL tarefas o nível ainda não diz nada: "em avaliação"
+    const nivel = amostra >= AMOSTRA_NIVEL ? m.nivel ?? null : null;
     const nivelNum = nivel === null ? null : NIVEL_NUM[nivel] ?? null;
     const arquivo = `${papel}-${nivelNum ?? 1}.jpg`;
     return {
       papel,
       nome: nomes?.[papel] ?? (papel === 'gerente' ? 'Gerente' : papel),
-      estado, atividade, nivel, nivelNum,
+      estado, atividade, nivel, nivelNum, amostra,
       provisorio: m.provisorio ?? true,
       avatar: avatares?.has(arquivo) ? arquivo : null,
       // gerente não ganha nível (metricas.mjs), então "sem avaliação" não o deixa cinza

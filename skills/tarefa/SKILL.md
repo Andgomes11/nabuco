@@ -42,7 +42,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 - Claude Code: subagente `nabuco:<papel>`. Codex: agente `nabuco-<papel>`.
 - **Torne a delegação visível** (o trabalho do subagente aparece recolhido na tela): antes de chamar, rode `T delegar --papel <papel> --passo="<passo que ele vai fazer>"` (vai para a linha do tempo do painel) e escreva ao usuário uma linha `→ <Papel>: <passo>`; ao receber, `← <Papel>: <o que entregou, em uma linha>`. Implementação é sempre do escritor — se você se pegar editando código de produto, pare e delegue.
 - Antes de delegar: `C buscar --papel <escritor> --texto="<sintoma ou pedido>" --arquivos="<arquivos envolvidos>"` (arquivos separados por vírgula).
-- Mensagem ao escritor: caminho da pasta da tarefa, "leia plano.md, criterios.json e progresso.md", o passo exato a fazer agora, o caminho do nabuco (`$NABUCO`) e a saída da busca sob o título "Lições do time" (se vier `(nenhuma lição relevante)`, omita a seção).
+- Mensagem ao escritor: caminho da pasta da tarefa, "leia plano.md, criterios.json e progresso.md", o passo exato a fazer agora, o caminho do nabuco (`$NABUCO`) e a saída da busca sob o título "Lições do time" (se vier `(nenhuma lição relevante)`, omita a seção). A busca pode trazer também "Casos parecidos (ainda sem lição)": repasse-os junto, são erros reais que o time já resolveu.
 - Ao receber a entrega: atualize `progresso.md` (Estado atual, Próximo passo, Decisões com autor), `T log --texto="<resumo>"` e, para cada lição em "lições usadas", `C voto --id <id> --util sim` (👍) ou `--util nao` (👎).
 - **Você mesmo** roda o comando de verificação de cada critério e registra:
   `T criterio --id c1 --status passou --evidencia="<saída resumida>"` (ou `--status falhou`).

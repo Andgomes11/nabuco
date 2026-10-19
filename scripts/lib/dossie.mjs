@@ -4,6 +4,7 @@ import { lerCasos } from './casos.mjs';
 import { blocosDe, ativas } from './repositorio-licoes.mjs';
 import { configDe } from './modelos.mjs';
 import { NIVEL_NUM } from './painel-estado.mjs';
+import { AMOSTRA_NIVEL } from './constantes.mjs';
 
 const MAX_DIARIO = 20;
 const TAREFAS_RECENTES = 10;
@@ -17,13 +18,16 @@ export function atributos(m) {
   if (!m || typeof m !== 'object') return NULO();
   const t = num(m.turnos_ate_causa);
   const faro = t === null ? null : Math.max(0, Math.min(1, 1 - (t - 1) / 9));
-  const precisao = num(m.aceitacao_1a);
+  // escritor: aceitação de primeira; checador: achados que viraram correção
+  const precisao = num(m.aceitacao_1a) ?? num(m.achados_uteis);
   const rec = num(m.recorrencia);
   const esc = num(m.escapes);
   const amostra = num(m.amostra);
   const partes = [];
   if (rec !== null) partes.push(1 - rec);
-  if (esc !== null && amostra !== null && amostra > 0) partes.push(1 - Math.min(1, esc / amostra));
+  // sem aceitação nem achados avaliáveis (checador que só participou), "nada escapou" não é mérito
+  const avaliavel = num(m.aceitacao_1a) !== null || num(m.achados_uteis) !== null;
+  if (esc !== null && avaliavel && amostra !== null && amostra > 0) partes.push(1 - Math.min(1, esc / amostra));
   return { faro, precisao, confiabilidade: media(partes) };
 }
 
@@ -38,7 +42,7 @@ const seta = (agora, antes) => {
 };
 
 // indicadores que alimentam cada atributo (os mesmos do clique em modelo.mjs)
-const INDICADORES_ATRIBUTO = { faro: ['turnos_ate_causa'], precisao: ['aceitacao_1a'], confiabilidade: ['recorrencia', 'escapes'] };
+const INDICADORES_ATRIBUTO = { faro: ['turnos_ate_causa'], precisao: ['aceitacao_1a', 'achados_uteis'], confiabilidade: ['recorrencia', 'escapes'] };
 
 // índices (no array original) das fontes dos indicadores; `mapa` traduz índices de um subconjunto
 const fontesDe = (fontes, indicadores, mapa) =>
@@ -95,8 +99,9 @@ export function montarDossie({ papel, eventos, home, projeto, modelos, nome }) {
   return {
     papel,
     nome: nome ?? (papel === 'gerente' ? 'Gerente' : papel),
-    nivel: metricas.nivel ?? null,
-    nivelNum: NIVEL_NUM[metricas.nivel] ?? null,
+    // nível só aparece a partir de AMOSTRA_NIVEL tarefas; antes, "em avaliação"
+    nivel: (metricas.amostra ?? 0) >= AMOSTRA_NIVEL ? metricas.nivel ?? null : null,
+    nivelNum: (metricas.amostra ?? 0) >= AMOSTRA_NIVEL ? NIVEL_NUM[metricas.nivel] ?? null : null,
     provisorio: metricas.provisorio ?? true,
     amostra: metricas.amostra ?? 0,
     metricas,

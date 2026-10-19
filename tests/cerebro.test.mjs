@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,14 +72,22 @@ test('casos lista e filtra por papel; home vazia → []', () => {
 test('similares', () => {
   const vazio = run(['similares', '--de', arq('n.json', caso())]);
   assert.equal(vazio.status, 0, vazio.stderr);
-  assert.deepEqual(JSON.parse(vazio.stdout), { similares: [], destilar: false });
+  assert.deepEqual(JSON.parse(vazio.stdout), { similares: [], destilar: false, motivos: [] });
   run(['caso-add', '--de', arq('c.json', caso())]);
   const par = JSON.parse(run(['similares', '--de', arq('n.json', caso({ sintoma: 'Falha no build, cache' }))]).stdout);
   assert.equal(par.destilar, true); assert.equal(par.similares.length, 1); assert.ok(par.similares[0].score >= 0.4);
   const dif = JSON.parse(run(['similares', '--de', arq('d.json', caso({ sintoma: 'Layout quebrado no mobile', tags: ['css'] }))]).stdout);
-  assert.deepEqual(dif, { similares: [], destilar: false });
+  assert.deepEqual(dif, { similares: [], destilar: false, motivos: [] });
   const caro = JSON.parse(run(['similares', '--de', arq('k.json', caso({ sintoma: 'Layout quebrado no mobile', tags: ['css'], turnos: 8 }))]).stdout);
   assert.equal(caro.destilar, true);
+  assert.deepEqual(caro.motivos, ['custo_alto']);
+  // não precisa repetir o erro: achado alto/médio de checador ou sinal precoce já destilam
+  const achado = JSON.parse(run(['similares', '--de', arq('a.json', caso({ sintoma: 'Layout quebrado no mobile', tags: ['css'], severidade: 'alta' }))]).stdout);
+  assert.deepEqual(achado, { similares: [], destilar: true, motivos: ['achado_alta'] });
+  const baixa = JSON.parse(run(['similares', '--de', arq('b2.json', caso({ sintoma: 'Layout quebrado no mobile', tags: ['css'], severidade: 'baixa' }))]).stdout);
+  assert.equal(baixa.destilar, false);
+  const sinal = JSON.parse(run(['similares', '--de', arq('s.json', caso({ sintoma: 'Layout quebrado no mobile', tags: ['css'], sinal_precoce: 'media query sem teste' }))]).stdout);
+  assert.deepEqual(sinal.motivos, ['sinal_precoce']);
 });
 
 test('similares: tags idênticas bastam mesmo com sintomas de palavras diferentes', () => {
@@ -100,7 +108,7 @@ test('similares: tags idênticas bastam mesmo com sintomas de palavras diferente
 test('similares: tags disjuntas e texto sem relação → não similar', () => {
   run(['caso-add', '--de', arq('a.json', caso({ sintoma: 'media errada', causa_raiz: 'divisor errado', tags: ['estatistica', 'divisor'] }))]);
   const s = JSON.parse(run(['similares', '--de', arq('b.json', caso({ sintoma: 'Layout quebrado no mobile', causa_raiz: 'flex sem wrap', tags: ['css', 'layout'] }))]).stdout);
-  assert.deepEqual(s, { similares: [], destilar: false });
+  assert.deepEqual(s, { similares: [], destilar: false, motivos: [] });
 });
 
 test('similares: tags curtas (ui, db, ci) contam na comparação de tags', () => {
@@ -491,5 +499,58 @@ test('voto sem tarefa ativa continua contando cada voto', () => {
 test('similares ignora o próprio caso já gravado', () => {
   assert.equal(run(['caso-add', '--de', arq('c.json', caso())]).status, 0);
   const r = run(['similares', '--de', arq('c.json', caso())]);
-  assert.deepEqual(JSON.parse(r.stdout), { similares: [], destilar: false });
+  assert.deepEqual(JSON.parse(r.stdout), { similares: [], destilar: false, motivos: [] });
+});
+
+// ---------- aprendizado: casos na busca, severidade e recorrência automática ----------
+const casoIdx = (o = {}) => caso({ sintoma: 'código ß-1 duplicado violou índice único', causa_raiz: 'toUpperCase do JS difere do upper do Postgres', sinal_precoce: 'chave normalizada na aplicação para casar com índice funcional do banco', contexto: 'apps/api/src/catalogo-importacao-plano.ts', tags: ['postgres', 'unicidade'], ...o });
+
+test('caso-add: severidade do achado vai para o arquivo e volta na leitura; inválida é recusada', () => {
+  const r = run(['caso-add', '--de', arq('c.json', casoIdx({ severidade: 'alta' }))]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(readFileSync(join(home, r.stdout.trim()), 'utf8'), /^severidade do achado: alta$/m);
+  assert.equal(run(['caso-add', '--de', arq('x.json', casoIdx({ severidade: 'grave' }))]).status, 1);
+});
+
+test('buscar: sem lição relevante, completa com casos parecidos do papel', () => {
+  assert.equal(run(['caso-add', '--de', arq('c.json', casoIdx())]).status, 0);
+  assert.equal(run(['caso-add', '--de', arq('o.json', caso({ sintoma: 'layout quebrado no mobile', tags: ['css'] }))]).status, 0);
+  const r = run(['buscar', '--papel', 'dev', '--texto', 'importar códigos com índice único no Postgres']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /### Casos parecidos \(ainda sem lição\)/);
+  assert.match(r.stdout, /sinal precoce: chave normalizada/);
+  assert.doesNotMatch(r.stdout, /layout/);
+  // arquivo da tarefa em comum também casa
+  assert.match(run(['buscar', '--papel', 'dev', '--texto', 'ajustar plano', '--arquivos', 'src/catalogo-importacao-plano.ts']).stdout, /Casos parecidos/);
+  // outro papel não recebe casos do dev; JSON continua só com lições
+  assert.match(run(['buscar', '--papel', 'designer', '--texto', 'índice único Postgres']).stdout, /\(nenhuma lição relevante\)/);
+  assert.deepEqual(JSON.parse(run(['buscar', '--papel', 'dev', '--texto', 'índice único Postgres', '--json']).stdout), []);
+});
+
+test('recorrência automática: lição entregue pela busca nesta tarefa e caso parecido com a evidência dela', () => {
+  const c1 = run(['caso-add', '--de', arq('c1.json', casoIdx())]).stdout.trim();
+  const add = run(['licao-add', '--de', arq('l.json', { papel: 'dev', titulo: 'Use o upper do banco para chaves únicas', gatilho: 'índice único com upper no Postgres', expectativa: 'ß difere', faca: 'normalize no banco', porque: 'toUpperCase difere', evidencia: [`[caso](${c1})`] })]);
+  assert.equal(add.status, 0, add.stderr);
+  assert.equal(novaTarefa().status, 0);
+  const b = run(['buscar', '--papel', 'dev', '--texto', 'índice único com upper no Postgres']);
+  assert.match(b.stdout, /^## dev-0001/m);
+  assert.ok(hist().some(e => e.tipo === 'licoes_entregues' && e.papel === null && e.dados.para === 'dev' && e.dados.ids[0] === 'dev-0001'));
+  const tarefa = readdirSync(join(proj, '.nabuco', 'tarefas'))[0];
+  const retro = join(proj, '.nabuco', 'tarefas', tarefa, 'retro');
+  mkdirSync(retro, { recursive: true });
+  const rascunho = join(retro, 'caso-1.json');
+  writeFileSync(rascunho, JSON.stringify(casoIdx({ sintoma: 'código ß-2 duplicado violou índice único de novo' })));
+  const r = run(['caso-add', '--de', rascunho]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /recorrência detectada — a lição dev-0001/);
+  assert.equal(hist().filter(e => e.tipo === 'caso_criado').at(-1).dados.recorrencia_de, 'dev-0001');
+  // caso sem relação na mesma tarefa: não é recorrência
+  writeFileSync(join(retro, 'caso-2.json'), JSON.stringify(caso({ sintoma: 'layout quebrado no mobile', tags: ['css'] })));
+  const r2 = run(['caso-add', '--de', join(retro, 'caso-2.json')]);
+  assert.doesNotMatch(r2.stderr, /recorrência/);
+});
+
+test('buscar: plural simples casa com singular (códigos únicos ↔ código único)', () => {
+  assert.equal(run(['caso-add', '--de', arq('c.json', casoIdx({ sinal_precoce: 'x', contexto: '' }))]).status, 0);
+  assert.match(run(['buscar', '--papel', 'dev', '--texto', 'importar códigos únicos']).stdout, /Casos parecidos/);
 });

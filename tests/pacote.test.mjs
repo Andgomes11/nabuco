@@ -38,6 +38,8 @@ test('hooks: Stop chama o gate; SubagentStart/Stop chamam evento --hook; caminho
   assert.equal(cmd('Stop').type, 'command');
   assert.equal(cmd('Stop').command, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/gate-evidencia.mjs"');
   for (const ev of ['SubagentStart', 'SubagentStop']) assert.equal(cmd(ev).command, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/evento.mjs" --hook');
+  assert.equal(h.PostToolUse[0].matcher, 'Bash');
+  assert.equal(h.PostToolUse[0].hooks[0].command, 'node "${CLAUDE_PLUGIN_ROOT}/scripts/dono.mjs"');
   assert.equal(h.SubagentStop.length, 1); // SubagentStop NÃO roda o gate
 });
 
@@ -57,6 +59,6 @@ test('avatares: nomes válidos e até 200 KB', () => {
   }
 });
 
-test('versão 0.5.0 nos três lugares', () => {
-  for (const m of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(j(m).version, '0.5.0', m);
+test('versão 0.6.0 nos três lugares', () => {
+  for (const m of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(j(m).version, '0.6.0', m);
 });

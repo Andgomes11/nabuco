@@ -49,11 +49,15 @@ Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `pr
 
 O time aprende com os erros que resolveu, em três camadas:
 - **Casos** (`~/.nabuco/casos/<papel>/`): diário de erros resolvidos, sempre com o comando que provou a correção.
-- **Lições** (`~/.nabuco/licoes/<papel>.md`, globais, ou `.nabuco/licoes/<papel>.md`, do projeto): padrões destilados, até 30 por funcionário; o Gerente entrega no máximo 3 relevantes a cada escritor, que informa quais usou; o Gerente registra o voto 👍/👎.
+- **Lições** (`~/.nabuco/licoes/<papel>.md`, globais, ou `.nabuco/licoes/<papel>.md`, do projeto): padrões destilados, até 30 por funcionário; o Gerente entrega no máximo 3 relevantes a cada escritor, que informa quais usou; o Gerente registra o voto 👍/👎. Faltando lições relevantes, a busca completa com até 2 casos parecidos.
+- **Quando um caso vira lição:** a retro propõe a lição já no primeiro caso quando há um sinal precoce para ensinar ou quando um checador pegou o erro (achado alto ou médio), sem esperar o erro se repetir. Se o erro volta depois de a lição ter sido entregue na tarefa, o caso é marcado como recorrência sozinho.
+- **Senioridade:** o escritor é medido por aceitação de primeira, recorrência e escapes. O checador é medido pelos achados que viraram correção e pelos problemas que escaparam da revisão dele. O nível só aparece a partir de 3 tarefas; antes disso fica "em avaliação".
 - **Regras**: lições confiáveis promovidas a hook, lint ou teste.
 
 Ao fechar uma tarefa, `/nabuco:retro` (`$retro`) propõe casos e lições a partir das falhas; `/nabuco:licoes` (`$licoes`) lista, mostra métricas de senioridade, edita, aposenta e promove.
 **Nenhum caso ou lição é criado ou alterado sem a sua aprovação**, item a item (votos e eventos são registrados automaticamente). As mudanças em `~/.nabuco/` são commitadas no git de lá; nunca no repositório do projeto.
+
+O gate de evidência segura só a sessão do Gerente da tarefa: a que rodou a CLI de tarefa por último (no Claude Code). Outra sessão aberta no mesmo projeto não é bloqueada.
 
 ## Painel
 

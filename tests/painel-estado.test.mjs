@@ -198,3 +198,13 @@ test('linha do tempo: eventos da tarefa enxutos, sem ruído de agente interno, n
   assert.equal(m.length, MAX_LINHA);
   assert.equal(m[m.length - 1].dados.texto, '119');
 });
+
+test('nível só aparece a partir de 3 tarefas; antes fica nulo (em avaliação), com a amostra exposta', () => {
+  const tarefaDev = n => [ev('agente_inicio', 'dev', 100 - n, {}, `t${n}`), ev('tarefa_fechada', 'gerente', 99 - n, {}, `t${n}`)];
+  const duas = montarEstado({ ...base, eventos: [...tarefaDev(1), ...tarefaDev(2)] });
+  assert.equal(func(duas, 'dev').amostra, 2);
+  assert.equal(func(duas, 'dev').nivel, null);
+  assert.equal(func(duas, 'dev').cinza, true);
+  const tres = montarEstado({ ...base, eventos: [...tarefaDev(1), ...tarefaDev(2), ...tarefaDev(3)] });
+  assert.equal(func(tres, 'dev').nivel, 'Especialista');
+});

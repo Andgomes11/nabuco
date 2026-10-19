@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -180,4 +180,37 @@ test('hook: gate_bloqueou registra o harness pelo payload do Codex (turn_id)', (
   const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
   const evs = readFileSync(join(proj, '.nabuco', 'tarefas', ativa, 'eventos.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
   assert.equal(evs.find(e => e.tipo === 'gate_bloqueou').harness, 'codex');
+});
+
+const DONO = join(RAIZ, 'scripts', 'dono.mjs');
+const dono = payload => spawnSync(process.execPath, [DONO], { cwd: proj, input: JSON.stringify(payload), encoding: 'utf8', env: env() });
+
+test('dono da tarefa: a sessão que roda tarefa.mjs vira dona; o gate só segura a sessão dona', () => {
+  tarefa('nova', '--slug', 'x', '--tamanho', 'trivial', '--tipo', 'feature');
+  tarefa('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  tarefa('aprovar');
+  const dir = join(proj, '.nabuco', 'tarefas', readdirSync(join(proj, '.nabuco', 'tarefas'))[0]);
+  // comando que não é da CLI de tarefa, ou sem session_id: não define dono
+  dono({ session_id: 'A', cwd: proj, tool_input: { command: 'ls' } });
+  dono({ cwd: proj, tool_input: { command: 'node tarefa.mjs status' } });
+  assert.ok(!existsSync(join(dir, 'sessao')));
+  // sem dono, o gate vale para todos (comportamento anterior)
+  assert.equal(JSON.parse(gate({ session_id: 'B', cwd: proj }).stdout).decision, 'block');
+  rmSync(join(dir, 'gate-bloqueios'), { force: true });
+  dono({ session_id: 'A', cwd: proj, tool_input: { command: 'node "/x/scripts/tarefa.mjs" status' } });
+  assert.equal(readFileSync(join(dir, 'sessao'), 'utf8').trim(), 'A');
+  // outra sessão no mesmo projeto: não bloqueia, não registra evento nem cria contador
+  const antes = readFileSync(join(dir, 'eventos.jsonl'), 'utf8');
+  const outra = gate({ session_id: 'B', cwd: proj });
+  assert.equal(outra.status, 0);
+  assert.equal(outra.stdout, '');
+  assert.equal(readFileSync(join(dir, 'eventos.jsonl'), 'utf8'), antes);
+  assert.ok(!existsSync(join(dir, 'gate-bloqueios')));
+  // a dona continua bloqueada
+  assert.equal(JSON.parse(gate({ session_id: 'A', cwd: proj }).stdout).decision, 'block');
+  // retomar em outra sessão (rodando a CLI) transfere o dono
+  dono({ session_id: 'B', cwd: proj, tool_input: { command: 'node tarefa.mjs status' } });
+  assert.equal(JSON.parse(gate({ session_id: 'B', cwd: proj }).stdout).decision, 'block');
+  // payload inválido não quebra
+  assert.equal(spawnSync(process.execPath, [DONO], { cwd: proj, input: '{', encoding: 'utf8', env: env() }).status, 0);
 });

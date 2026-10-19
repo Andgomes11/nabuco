@@ -148,9 +148,24 @@ export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
     const comTurnos = casos.filter(p => { const n = dadosDe(p.e).turnos; return typeof n === 'number' && Number.isFinite(n); });
     const turnos_ate_causa = media(comTurnos.map(p => dadosDe(p.e).turnos));
 
-    // escape só existe para quem escreve: checador/gerente não ganham nível por participar (spec 7.5)
-    const escapou = !escritor ? [] : participadas.flat().filter(p => p.e.tipo === 'correcao_usuario' && doPapel(p) && dadosDe(p.e).apos_pronto === true);
-    const escapes = !escritor ? null : escapou.length;
+    // checador: achado alto/médio que levou a correção (rodada ou caso depois dele) é acerto; tarefa
+    // checada por ele com problema que você pegou depois do "pronto" é escape dele também
+    const checador = !escritor && papel !== 'gerente';
+    const relevante = p => p.e.tipo === 'achado' && doPapel(p) && ['alta', 'media'].includes(dadosDe(p.e).severidade);
+    const comAchado = checador ? participadas.filter(t => t.some(relevante)) : [];
+    const levouACorrecao = t => {
+      const i = t.findIndex(relevante);
+      return t.slice(i + 1).some(p => p.e.tipo === 'rodada_correcao' || p.e.tipo === 'caso_criado');
+    };
+    const achados_uteis = comAchado.length ? media(comAchado.map(t => (levouACorrecao(t) ? 1 : 0))) : null;
+
+    const escapou = escritor
+      ? participadas.flat().filter(p => p.e.tipo === 'correcao_usuario' && doPapel(p) && dadosDe(p.e).apos_pronto === true)
+      : checador ? participadas.flat().filter(p => p.e.tipo === 'correcao_usuario' && dadosDe(p.e).apos_pronto === true) : [];
+    const escapes = escritor || checador ? escapou.length : null;
+    // spec 7.5: ninguém ganha nível só por participar. O checador só é avaliado por escapes quando
+    // também tem achados avaliáveis; sem isso, "nada escapou" seria nota por estar presente
+    const contaEscapes = escritor || (checador && achados_uteis !== null);
 
     const votos = meus.filter(p => p.e.tipo === 'licao_usada' && typeof dadosDe(p.e).util === 'boolean');
     const pct_util = votos.length ? votos.filter(p => dadosDe(p.e).util).length / votos.length : null;
@@ -160,13 +175,14 @@ export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
     const indicadores = [
       aceitacao_1a,
       recorrencia === null ? null : 1 - recorrencia,
-      escapes !== null && amostra > 0 ? 1 - Math.min(1, escapes / amostra) : null,
+      contaEscapes && amostra > 0 ? 1 - Math.min(1, escapes / amostra) : null,
+      achados_uteis,
       pct_util,
     ].filter(x => x !== null);
     const score = media(indicadores);
 
     resultado[papel] = {
-      amostra, aceitacao_1a, tentativas_ate_verde, recorrencia, turnos_ate_causa, escapes, pct_util, promocoes,
+      amostra, aceitacao_1a, tentativas_ate_verde, recorrencia, turnos_ate_causa, escapes, achados_uteis, pct_util, promocoes,
       score, nivel: nivelDe(score), provisorio: amostra < AMOSTRA_MINIMA,
     };
     if (comFontes) {
@@ -178,6 +194,7 @@ export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
         recorrencia: idx(casos),
         turnos_ate_causa: idx(comTurnos),
         escapes: idx(escapou),
+        achados_uteis: idx(comAchado.flat().filter(p => relevante(p) || p.e.tipo === 'rodada_correcao' || p.e.tipo === 'caso_criado')),
         pct_util: idx(votos),
         promocoes: idx(promovidas),
       };

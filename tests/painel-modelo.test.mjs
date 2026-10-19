@@ -76,11 +76,11 @@ test('urlFontes: papel, indicador, versão e chave codificados', () => {
 test('ATRIBUTOS ligam cada atributo aos indicadores que o alimentam', () => {
   assert.deepEqual(ATRIBUTOS.map(a => [a.chave, a.indicadores]), [
     ['faro', ['turnos_ate_causa']],
-    ['precisao', ['aceitacao_1a']],
+    ['precisao', ['aceitacao_1a', 'achados_uteis']],
     ['confiabilidade', ['recorrencia', 'escapes']],
   ]);
   assert.deepEqual(INDICADORES.map(i => i.chave), [
-    'amostra', 'aceitacao_1a', 'tentativas_ate_verde', 'recorrencia', 'turnos_ate_causa', 'escapes', 'pct_util', 'promocoes',
+    'amostra', 'aceitacao_1a', 'tentativas_ate_verde', 'recorrencia', 'turnos_ate_causa', 'escapes', 'achados_uteis', 'pct_util', 'promocoes',
   ]);
 });
 
@@ -143,4 +143,11 @@ test('textoEvento: frases da linha do tempo e classes', async () => {
   assert.equal(textoEvento({ tipo: 'gate_bloqueou', dados: { pendencias: 2 } }).texto, 'gate segurou o fim do turno (2 pendência(s))');
   assert.equal(textoEvento({ tipo: 'licao_usada', papel: 'dev', dados: {} }).texto, 'licao usada · dev');
   assert.equal(textoEvento(null).texto, '?');
+});
+
+test('rotuloNivel: em avaliação com 1 ou 2 tarefas, sem avaliação com 0', async () => {
+  const { rotuloNivel } = await import('../scripts/painel/publico/modelo.mjs');
+  assert.equal(rotuloNivel({ nivel: null, amostra: 0 }), 'sem avaliação');
+  assert.equal(rotuloNivel({ nivel: null, amostra: 2 }), 'em avaliação (2/3)');
+  assert.equal(rotuloNivel({ nivel: 'Pleno', amostra: 5, provisorio: true }), 'Pleno · provisório');
 });

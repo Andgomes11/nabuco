@@ -31,7 +31,9 @@ export function aparenciaMonitor(f, conectado) {
 }
 
 export function rotuloNivel(f) {
-  if (!f || typeof f.nivel !== 'string' || !f.nivel) return 'sem avaliação';
+  if (!f || typeof f.nivel !== 'string' || !f.nivel) {
+    return finito(f?.amostra) && f.amostra > 0 && f.amostra < 3 ? `em avaliação (${f.amostra}/3)` : 'sem avaliação';
+  }
   return f.provisorio ? `${f.nivel} · provisório` : f.nivel;
 }
 
@@ -65,6 +67,7 @@ export const INDICADORES = [
   { chave: 'recorrencia', rotulo: 'recorrência de bugs', formato: 'taxa' },
   { chave: 'turnos_ate_causa', rotulo: 'turnos até a causa', formato: 'media' },
   { chave: 'escapes', rotulo: 'escapes após pronto', formato: 'inteiro' },
+  { chave: 'achados_uteis', rotulo: 'achados que viraram correção', formato: 'taxa' },
   { chave: 'pct_util', rotulo: 'lições úteis', formato: 'taxa' },
   { chave: 'promocoes', rotulo: 'lições promovidas', formato: 'inteiro' },
 ];
@@ -81,7 +84,7 @@ export function formatarIndicador(chave, v) {
 // atributos do dossiê e os indicadores que os alimentam (o clique leva às fontes deles)
 export const ATRIBUTOS = [
   { chave: 'faro', rotulo: 'Faro', dica: 'achar a causa', indicadores: ['turnos_ate_causa'] },
-  { chave: 'precisao', rotulo: 'Precisão', dica: 'acertar de primeira', indicadores: ['aceitacao_1a'] },
+  { chave: 'precisao', rotulo: 'Precisão', dica: 'acertar de primeira (escritor) ou apontar o que precisava de correção (checador)', indicadores: ['aceitacao_1a', 'achados_uteis'] },
   { chave: 'confiabilidade', rotulo: 'Confiabilidade', dica: 'não deixar escapar nem repetir', indicadores: ['recorrencia', 'escapes'] },
 ];
 

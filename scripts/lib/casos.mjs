@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PAPEIS_CEREBRO } from './constantes.mjs';
+import { PAPEIS_CEREBRO, SEVERIDADES } from './constantes.mjs';
 import { slugify } from './texto.mjs';
 
 export const CAMPOS_CASO = ['sintoma', 'contexto', 'hipotese_errada', 'causa_raiz', 'correcao', 'verificacao', 'sinal_precoce'];
@@ -21,6 +21,7 @@ export function validarCaso(c) {
   if (c.tags != null && !(Array.isArray(c.tags) && c.tags.every(t => typeof t === 'string'))) erros.push('tags deve ser lista de textos');
   if (c.turnos != null && !(Number.isInteger(c.turnos) && c.turnos >= 0)) erros.push('turnos deve ser inteiro >= 0');
   if (c.recorrencia_de != null && vazio(c.recorrencia_de)) erros.push('recorrencia_de deve ser um id');
+  if (c.severidade != null && !SEVERIDADES.includes(c.severidade)) erros.push(`severidade deve ser ${SEVERIDADES.join(', ')} (a do achado que originou o caso)`);
   return erros;
 }
 
@@ -30,6 +31,7 @@ export function formatarCaso(c) {
     if (k === 'sintoma' || !vazio(c[k])) linhas.push(`${ROTULOS[k]}: ${uma(c[k] ?? '')}`);
   }
   if (!vazio(c.recorrencia_de)) linhas.push(`recorrência de: ${uma(c.recorrencia_de)}`);
+  if (SEVERIDADES.includes(c.severidade)) linhas.push(`severidade do achado: ${c.severidade}`);
   const custo = Number.isInteger(c.turnos) ? `${c.turnos} turnos` : 'n/d';
   linhas.push(`custo: ${custo} · tags: ${(c.tags ?? []).map(uma).join(', ')} · papel: ${c.papel}`);
   return linhas.join('\n') + '\n';
@@ -44,6 +46,7 @@ function interpretar(texto, arquivo) {
     const rot = m[1].trim();
     if (inverso[rot]) c[inverso[rot]] = m[2].trim();
     else if (rot === 'recorrência de') c.recorrencia_de = m[2].trim();
+    else if (rot === 'severidade do achado') c.severidade = m[2].trim();
     else if (rot === 'custo') {
       const t = /^(\d+) turnos/.exec(m[2]);
       if (t) c.turnos = Number(t[1]);

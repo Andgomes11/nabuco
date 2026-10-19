@@ -28,11 +28,12 @@ Para cada sinal com causa conhecida **e** verificação objetiva (comando + resu
   "verificacao": "npm test -- auth → 12 passed", "sinal_precoce": "promise pendente no log",
   "tags": ["async", "auth"], "turnos": 6 }
 ```
-Obrigatórios: `papel`, `sintoma`, `causa_raiz`, `correcao`, `verificacao`. `papel` é um dos 9 funcionários ou `gerente`. Se o erro voltou apesar de uma lição que o cobria, acrescente `"recorrencia_de": "<id da lição>"`.
-Depois rode `C similares --de <pasta da tarefa>/retro/caso-N.json` → `{ similares, destilar }`.
+Obrigatórios: `papel`, `sintoma`, `causa_raiz`, `correcao`, `verificacao`. `papel` é um dos 9 funcionários ou `gerente`. Se o caso nasceu de um achado de checador, inclua `"severidade": "alta|media|baixa"` (a do achado). Capriche no `sinal_precoce`: é dele que sai o gatilho da lição.
+Recorrência: o `caso-add` detecta sozinho quando o caso se parece com a evidência de uma lição que o time recebeu nesta tarefa, e avisa no stderr (mostre o aviso ao usuário). Se você souber de uma recorrência que ele não pegou, acrescente `"recorrencia_de": "<id da lição>"`.
+Depois rode `C similares --de <pasta da tarefa>/retro/caso-N.json` → `{ similares, destilar, motivos }`.
 
 ## 3. Lições (rascunho)
-Se `destilar` for `true` (≥ 1 caso similar já gravado ou custo alto), proponha lição em `<pasta da tarefa>/retro/licao-N.json`. No total, 0–3 lições por funcionário envolvido, **inclui o Gerente** (classificação, plano, critérios mal feitos).
+Se `destilar` for `true`, proponha uma lição candidata para o caso em `<pasta da tarefa>/retro/licao-N.json`. `motivos` diz por quê: `casos_similares` (o erro já apareceu antes), `custo_alto`, `achado_alta`/`achado_media` (um checador pegou antes de você ver) ou `sinal_precoce` (há um sinal observável a ensinar). Não espere o erro se repetir para ensinar; o usuário decide na aprovação. No total, 0–3 lições por funcionário envolvido, **inclui o Gerente** (classificação, plano, critérios mal feitos).
 ```json
 { "papel": "dev", "titulo": "Confira await em funções de I/O antes de mexer em mocks",
   "gatilho": "TypeError: undefined vindo de função async", "expectativa": "se for await faltando, o valor é uma Promise; se não, a hipótese está errada",
