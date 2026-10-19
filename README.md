@@ -16,8 +16,19 @@ Time de funcionários-agentes para **Claude Code** e **OpenAI Codex**: um Gerent
 **Codex**
 ```
 codex plugin marketplace add Andgomes11/nabuco
+codex plugin add nabuco@nabuco
 ```
-Habilite o plugin, rode `$setup` e depois `/hooks` para confiar nos hooks do nabuco (o Codex pede isso de novo a cada atualização do plugin).
+Rode `$setup` e depois `/hooks` para confiar nos hooks do nabuco (o Codex pede isso de novo a cada atualização do plugin).
+
+No Windows:
+- Sem sandbox configurado o Codex cai para somente leitura e não consegue nem ler as skills. Adicione ao `~/.codex/config.toml`:
+  ```toml
+  [windows]
+  sandbox = "unelevated"
+  ```
+  Nesse modo o Node não consegue abrir subprocessos (`spawn EPERM`): `node --test` precisa de `--test-isolation=none` e o commit automático do cérebro falha (os arquivos são gravados mesmo assim).
+- O sandbox também protege `~/.codex`, então o `$setup` não consegue instalar os agentes por lá. Se ele avisar `EPERM`, rode `node <plugin>/scripts/setup.mjs` num terminal comum.
+- Se o PowerShell recusar `codex` por política de execução, use `codex.cmd`.
 
 Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas credenciais do GitHub.
 
