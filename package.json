@@ -1,6 +1,6 @@
 {
   "name": "nabuco",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Time de funcionários-agentes que aprende com erros — Claude Code + Codex",
   "private": true,
   "type": "module",

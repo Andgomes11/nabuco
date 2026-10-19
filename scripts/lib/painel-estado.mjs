@@ -69,7 +69,8 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
       estado, atividade, nivel, nivelNum,
       provisorio: m.provisorio ?? true,
       avatar: avatares?.has(arquivo) ? arquivo : null,
-      cinza: nivel === null,
+      // gerente não ganha nível (metricas.mjs), então "sem avaliação" não o deixa cinza
+      cinza: nivel === null && papel !== 'gerente',
     };
   });
 

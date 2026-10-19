@@ -14,7 +14,7 @@ test('constantes', () => {
   assert.deepEqual(NIVEL_NUM, { 'Júnior': 1, 'Pleno': 2, 'Sênior': 3, 'Especialista': 4 });
 });
 
-test('sem dados: 10 ociosos, cinza, tarefa null', () => {
+test('sem dados: 10 ociosos, cinza (menos o gerente), tarefa null', () => {
   const est = montarEstado({ ...base, eventos: [] });
   assert.equal(est.versao, 0);
   assert.equal(est.projeto, 'meu-proj');
@@ -22,7 +22,7 @@ test('sem dados: 10 ociosos, cinza, tarefa null', () => {
   assert.equal(est.funcionarios.length, 10);
   for (const f of est.funcionarios) {
     assert.equal(f.estado, 'ocioso'); assert.equal(f.atividade, 0);
-    assert.equal(f.nivel, null); assert.equal(f.cinza, true); assert.equal(f.avatar, null);
+    assert.equal(f.nivel, null); assert.equal(f.cinza, f.papel !== 'gerente'); assert.equal(f.avatar, null);
   }
 });
 

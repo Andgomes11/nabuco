@@ -260,7 +260,8 @@ kbd {
 }
 .retrato img, .retrato .silhueta { width: 100%; height: 100%; display: block; object-fit: cover; }
 .retrato .silhueta { fill: currentColor; padding: 12%; }
-.retrato.cinza img { filter: grayscale(1) contrast(0.95); }
+/* sem avaliação fica cinza só fora do trabalho; trabalhando mostra a cor (o rótulo já diz "sem avaliação") */
+.monitor:not([data-cor="verde"]) .retrato.cinza img { filter: grayscale(1) contrast(0.95); }
 .monitor[data-cor="apagado"] .retrato { border-color: var(--borda); color: var(--apagado); }
 .monitor[data-cor="apagado"] .retrato img { filter: brightness(0.5) saturate(0.6); }
 .monitor[data-cor="apagado"] .retrato.cinza img { filter: grayscale(1) brightness(0.5); }
