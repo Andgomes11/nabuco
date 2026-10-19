@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { acharProjeto, lerAtiva } from './lib/caminhos.mjs';
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { decidirGate } from './lib/gate.mjs';
-import { registrar } from './lib/eventos.mjs';
+import { registrar, detectarHarness } from './lib/eventos.mjs';
 
 function lerPayload() {
   try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
@@ -58,7 +58,7 @@ try {
     zerarContador();
     try {
       escreverJson(arqEstado, { ...estado, fase: 'aguardando_usuario' });
-      registrar({ tipo: 'gate_liberado', dados: { bloqueios: n, pendencias: r.pendencias }, projeto, harness: undefined });
+      registrar({ tipo: 'gate_liberado', dados: { bloqueios: n, pendencias: r.pendencias }, projeto, harness: detectarHarness(payload) });
     } catch (e) {
       process.stderr.write(`nabuco: falha ao registrar a liberação do gate (${e.message}).\n`);
     }
@@ -75,7 +75,7 @@ try {
   }
   process.stdout.write(JSON.stringify({ decision: 'block', reason: r.motivo }) + '\n');
   try {
-    registrar({ tipo: 'gate_bloqueou', dados: { fase: estado.fase, pendencias: r.pendencias }, projeto, harness: undefined });
+    registrar({ tipo: 'gate_bloqueou', dados: { fase: estado.fase, pendencias: r.pendencias }, projeto, harness: detectarHarness(payload) });
   } catch (e) {
     process.stderr.write(`nabuco: não consegui registrar o evento (${e.message}).\n`);
   }

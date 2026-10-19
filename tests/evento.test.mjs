@@ -1,11 +1,12 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { normalizarPapel } from '../scripts/evento.mjs';
+import { detectarHarness } from '../scripts/lib/eventos.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EV = join(RAIZ, 'scripts', 'evento.mjs');
@@ -101,4 +102,21 @@ test('CLI --tarefa: correcao_usuario depois de concluir conta como escape e entr
   // tarefa que não existe mais: o evento vai só para o histórico, com o nome informado
   assert.equal(run(['correcao_usuario', '--tarefa', 'sumiu']).status, 0);
   assert.equal(hist().at(-1).tarefa, 'sumiu');
+});
+
+test('detectarHarness: variáveis reais do Codex e aninhamento com o Claude Code', () => {
+  const codex = { CODEX_THREAD_ID: 't1', CODEX_SESSION_ID: 's1', CODEX_VERSION: '0.163.0' };
+  assert.equal(detectarHarness({}, codex), 'codex');
+  assert.equal(detectarHarness({}, { CLAUDECODE: '1', ...codex }), 'codex'); // Codex aberto de dentro do Claude Code
+  assert.equal(detectarHarness({ turn_id: 'x' }, { CLAUDECODE: '1' }), 'codex'); // payload de hook do Codex
+  assert.equal(detectarHarness({}, { CLAUDECODE: '1' }), 'claude');
+  assert.equal(detectarHarness({}, { CLAUDE_PROJECT_DIR: 'c:/p', ...codex }), 'claude'); // hook do Claude Code
+  assert.equal(detectarHarness({}, { NABUCO_HARNESS: 'teste', ...codex }), 'teste');
+  assert.equal(detectarHarness({}, {}), 'desconhecido');
+});
+
+test('CLI: sem tarefa ativa e histórico global não gravável → falha (o evento não teria onde ficar)', () => {
+  writeFileSync(join(base, 'arquivo'), 'x');
+  const r = spawnSync(process.execPath, [EV, 'achado', '--papel', 'revisor'], { cwd: proj, input: '', encoding: 'utf8', env: { ...env(), NABUCO_HOME: join(base, 'arquivo', 'sub') } });
+  assert.notEqual(r.status, 0);
 });

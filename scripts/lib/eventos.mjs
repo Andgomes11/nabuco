@@ -2,10 +2,14 @@ import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { nabucoHome, lerAtiva, dirTarefas } from './caminhos.mjs';
 
-export function detectarHarness(payload = {}) {
-  if (process.env.NABUCO_HARNESS) return process.env.NABUCO_HARNESS;
-  if (process.env.CLAUDECODE || process.env.CLAUDE_PROJECT_DIR) return 'claude';
-  if (payload.turn_id || process.env.CODEX_HOME || process.env.CODEX_SANDBOX) return 'codex';
+// CLAUDECODE é herdado por tudo que nasce do Claude Code (inclusive um Codex aberto dali),
+// então só vale depois das marcas do Codex; CLAUDE_PROJECT_DIR só existe em hook do Claude.
+export function detectarHarness(payload = {}, env = process.env) {
+  if (env.NABUCO_HARNESS) return env.NABUCO_HARNESS;
+  if (payload.turn_id) return 'codex';
+  if (env.CLAUDE_PROJECT_DIR) return 'claude';
+  if (env.CODEX_THREAD_ID || env.CODEX_SESSION_ID || env.CODEX_HOME || env.CODEX_SANDBOX) return 'codex';
+  if (env.CLAUDECODE) return 'claude';
   return 'desconhecido';
 }
 

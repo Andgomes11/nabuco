@@ -169,3 +169,15 @@ test('hook: pasta da tarefa apagada mas "ativa" ainda aponta → não bloqueia',
   const r = gate({ cwd: proj });
   assert.equal(r.status, 0); assert.equal(r.stdout, '');
 });
+
+test('hook: gate_bloqueou registra o harness pelo payload do Codex (turn_id)', () => {
+  tarefa('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug');
+  tarefa('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  tarefa('aprovar');
+  const semHarness = Object.fromEntries(Object.entries(env()).filter(([k]) => !/^(NABUCO_HARNESS|CLAUDE|CODEX)/.test(k)));
+  const r = spawnSync(process.execPath, [GATE], { cwd: proj, input: JSON.stringify({ cwd: proj, turn_id: 't1' }), encoding: 'utf8', env: semHarness });
+  assert.equal(JSON.parse(r.stdout).decision, 'block');
+  const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  const evs = readFileSync(join(proj, '.nabuco', 'tarefas', ativa, 'eventos.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(evs.find(e => e.tipo === 'gate_bloqueou').harness, 'codex');
+});
