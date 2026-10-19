@@ -33,6 +33,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 - `media`/`sensivel`: preencha `plano.md` (Objetivo, Método, Restrições, Validação; até ~40 linhas).
 - Todos os tamanhos: cada critério precisa de um comando que o prove:
   `T criterio-add --id c1 --descricao="<o que>" --verificacao="<comando>"`
+- Para ajustar um critério: `T criterio-editar --id c1 --descricao="..."` e/ou `--verificacao="..."`. Depois do plano aprovado, isso muda a meta: só com ok explícito do usuário, rodando com `--ok-usuario --motivo="<por quê>"`. Verificação nova volta o critério para pendente.
 - `trivial`: crie os critérios e rode `T aprovar` direto.
 - `media`/`sensivel`: rode `T fase aguardando_aprovacao`, mostre plano + critérios e **pare**. Só após um "ok" explícito: `T aprovar`.
 - `sensivel`: divida o plano em fases; ao fim de cada fase, `T fase aguardando_usuario --motivo="checkpoint fase N"` e peça ok.
@@ -68,5 +69,7 @@ Depois do resumo, ofereça a retrospectiva (`/nabuco:retro` no Claude Code, `$re
 - Antes de fazer qualquer pergunta ao usuário durante a execução: `T fase aguardando_usuario --motivo="<pergunta>"`; ao retomar: `T fase executando`.
 - Quando o usuário apontar um problema depois de a tarefa estar pronta: `E correcao_usuario --papel <papel> --tarefa <nome da tarefa concluída> --dados='{"apos_pronto":true,"resumo":"..."}'` (papel = quem entregou a parte com problema; nome = a pasta em `.nabuco/tarefas/`, ex.: `2026-10-17-login` — sem `--tarefa` o evento não conta como escape, porque a tarefa já não está ativa).
 - Para desistir: `T abandonar --motivo="<por quê>"`.
+- `estado.json`, `criterios.json` e `eventos.jsonl` só mudam pela CLI (`T`, `E`, `C`) — nunca à mão nem com patch. `plano.md` e `progresso.md` você edita normalmente.
+- Se o ambiente bloquear um comando (sandbox, permissão, política do shell, histórico do nabuco não gravável), não contorne mudando configuração do projeto, scripts de teste ou variáveis do nabuco (`NABUCO_HOME`): `T fase aguardando_usuario --motivo="<o que bloqueou>"` e pergunte ao usuário.
 - Proibido para todo o time: tocar produção, push, deploy, commit sem pedido, dependência fora do plano aprovado.
 - Valores de texto livre sempre na forma `--flag="valor"` (valores que começam com `-` quebram a forma com espaço).

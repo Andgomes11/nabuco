@@ -82,6 +82,36 @@ const comandos = {
     console.log(`critério ${id} adicionado`);
   },
 
+  // Depois do plano aprovado, mudar um critério é mudar a meta: só com ok do usuário e fica no evento.
+  'criterio-editar'() {
+    const { values: v } = opcoes({ id: { type: 'string' }, descricao: { type: 'string' }, verificacao: { type: 'string' }, motivo: { type: 'string' }, 'ok-usuario': { type: 'boolean' } });
+    const id = exigir(v.id, 'id');
+    if (v.descricao === undefined && v.verificacao === undefined) throw new ErroUso('informe --descricao e/ou --verificacao');
+    if (v.descricao !== undefined) exigir(v.descricao, 'descricao');
+    if (v.verificacao !== undefined) exigir(v.verificacao, 'verificacao');
+    const a = exigirAtiva();
+    const aprovado = !['planejando', 'aguardando_aprovacao'].includes(ler(a, 'estado.json').fase);
+    if (aprovado && !v['ok-usuario']) {
+      throw new ErroRegra('plano já aprovado: mudar um critério muda a meta. Pergunte ao usuário (T fase aguardando_usuario --motivo="...") e, com o ok dele, rode de novo com --ok-usuario e --motivo');
+    }
+    if (aprovado) exigir(v.motivo, 'motivo');
+    const c = ler(a, 'criterios.json');
+    const item = c.criterios?.find(x => x.id === id);
+    if (!item) throw new ErroRegra(`critério "${id}" não existe`);
+    const dados = { id, acao: 'editado' };
+    for (const campo of ['descricao', 'verificacao']) {
+      if (v[campo] === undefined || v[campo] === item[campo]) continue;
+      dados[campo] = { de: item[campo], para: v[campo] };
+      item[campo] = v[campo];
+    }
+    if (dados.verificacao) Object.assign(item, { status: 'pendente', evidencia: '', em: null }); // a evidência provava o comando antigo
+    if (v.motivo) dados.motivo = v.motivo;
+    if (v['ok-usuario']) dados.ok_usuario = true;
+    gravar(a, 'criterios.json', c);
+    registrar({ tipo: 'criterio', dados, projeto });
+    console.log(`critério ${id} editado${dados.verificacao ? ' (verificação nova: status pendente)' : ''}`);
+  },
+
   criterio() {
     const { values: v } = opcoes({ id: { type: 'string' }, status: { type: 'string' }, evidencia: { type: 'string' } });
     const id = exigir(v.id, 'id');

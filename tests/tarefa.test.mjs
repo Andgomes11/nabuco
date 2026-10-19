@@ -156,3 +156,43 @@ test('histórico global não gravável: comando da tarefa avisa e não falha (ev
   const tipos = linhas(join(proj, '.nabuco', 'tarefas', ativa, 'eventos.jsonl')).map(e => e.tipo);
   assert.deepEqual(tipos, ['tarefa_criada', 'plano_aprovado']);
 });
+
+test('criterio-editar: livre antes do plano aprovado; evento registra a edição', () => {
+  run('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug');
+  run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'npm test');
+  const r = run('criterio-editar', '--id', 'c1', '--verificacao=node --test');
+  assert.equal(r.code, 0, r.err);
+  const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  const dir = join(proj, '.nabuco', 'tarefas', ativa);
+  const [c1] = JSON.parse(readFileSync(join(dir, 'criterios.json'), 'utf8')).criterios;
+  assert.equal(c1.verificacao, 'node --test'); assert.equal(c1.descricao, 'd');
+  const ev = linhas(join(dir, 'eventos.jsonl')).at(-1);
+  assert.equal(ev.tipo, 'criterio');
+  assert.deepEqual(ev.dados, { id: 'c1', acao: 'editado', verificacao: { de: 'npm test', para: 'node --test' } });
+});
+
+test('criterio-editar: depois do plano aprovado exige --ok-usuario e --motivo; verificação nova zera a evidência', () => {
+  run('nova', '--slug', 'x', '--tamanho', 'media', '--tipo', 'bug');
+  run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'npm test');
+  run('aprovar');
+  run('criterio', '--id', 'c1', '--status', 'passou', '--evidencia', '3 passed');
+  const sem = run('criterio-editar', '--id', 'c1', '--verificacao=node --test');
+  assert.equal(sem.code, 1);
+  assert.match(sem.err, /plano já aprovado/);
+  assert.equal(run('criterio-editar', '--id', 'c1', '--verificacao=node --test', '--ok-usuario').code, 2); // falta --motivo
+  const ok = run('criterio-editar', '--id', 'c1', '--verificacao=node --test', '--motivo=sandbox bloqueia npm', '--ok-usuario');
+  assert.equal(ok.code, 0, ok.err);
+  const ativa = readFileSync(join(proj, '.nabuco', 'ativa'), 'utf8').trim();
+  const dir = join(proj, '.nabuco', 'tarefas', ativa);
+  const [c1] = JSON.parse(readFileSync(join(dir, 'criterios.json'), 'utf8')).criterios;
+  assert.equal(c1.status, 'pendente'); assert.equal(c1.evidencia, '');
+  const ev = linhas(join(dir, 'eventos.jsonl')).at(-1);
+  assert.equal(ev.dados.motivo, 'sandbox bloqueia npm'); assert.equal(ev.dados.ok_usuario, true);
+});
+
+test('criterio-editar: sem campo para mudar → exit 2; id inexistente → exit 1', () => {
+  run('nova', '--slug', 'x', '--tamanho', 'trivial', '--tipo', 'bug');
+  run('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  assert.equal(run('criterio-editar', '--id', 'c1').code, 2);
+  assert.equal(run('criterio-editar', '--id', 'c9', '--descricao=x').code, 1);
+});
