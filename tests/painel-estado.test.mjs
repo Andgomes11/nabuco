@@ -165,3 +165,14 @@ test('tarefa.aviso: repassado do leitor (ex.: criterios.json ilegível); sem avi
   assert.equal(montarEstado({ ...base, eventos: [], tarefa: { ...tar('executando'), aviso } }).tarefa.aviso, aviso);
   assert.equal(montarEstado({ ...base, eventos: [], tarefa: { ...tar('executando'), aviso: 42 } }).tarefa.aviso, null);
 });
+
+test('limite do plano: null sem amostras; com tarefa, consumo desde a criação dela', () => {
+  assert.equal(montarEstado({ ...base, eventos: [] }).limite, null);
+  const renova = Math.floor((AGORA + 60 * 60000) / 1000);
+  const limite = [{ ts: min(30), h5: { pct: 10, renova } }, { ts: min(5), h5: { pct: 16, renova } }];
+  const t = { ...tar('executando'), estado: { ...tar('executando').estado, criada: min(20) } };
+  const est = montarEstado({ ...base, eventos: [], tarefa: t, limite });
+  assert.equal(est.limite.h5.pct, 16);
+  assert.deepEqual(est.limite.tarefa, { h5: 6, sem: null });
+  assert.equal(montarEstado({ ...base, eventos: [], limite }).limite.tarefa, null);
+});

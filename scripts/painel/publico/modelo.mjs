@@ -95,3 +95,22 @@ export function resumoGate(g) {
   if (pendencias.length || passou < total) return { ...base, situacao: 'pendente', mensagem: pendencias.length ? null : 'critérios pendentes' };
   return { ...base, situacao: 'ok', mensagem: 'todos os critérios passaram com evidência' };
 }
+
+// limite do plano no cabeçalho; null = sem dado (status line não instalada ou plano sem limite)
+const JANELAS = [['h5', '5h'], ['sem', 'semana']];
+const pontos = v => String(Math.round(v * 10) / 10).replace('.', ',');
+export function resumoLimite(l) {
+  if (!l || typeof l !== 'object') return null;
+  const janelas = JANELAS.filter(([k]) => finito(l[k]?.pct)).map(([chave, rotulo]) => {
+    const pct = Math.max(0, Math.min(100, l[chave].pct));
+    return { chave, rotulo, pct, texto: `${Math.round(pct)}%`, renova: typeof l[chave].renova === 'string' ? l[chave].renova : null, alto: pct >= 80 };
+  });
+  const consumo = JANELAS.filter(([k]) => finito(l.tarefa?.[k])).map(([k, r]) => `+${pontos(l.tarefa[k])}% ${r}`);
+  return {
+    janelas,
+    // aproximado: o limite é da conta e inclui outras sessões no mesmo período
+    tarefa: consumo.length ? `esta tarefa ≈ ${consumo.join(' · ')}` : null,
+    antigo: l.antigo === true,
+    atualizado: typeof l.atualizado === 'string' ? l.atualizado : null,
+  };
+}

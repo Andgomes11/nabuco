@@ -68,6 +68,18 @@ function lerEventosJsonl(arq) {
   return evs;
 }
 
+// amostras do limite do plano gravadas pela status line; relê só quando o arquivo muda
+function leitorLimite(arq) {
+  let sig = null, amostras = [];
+  return () => {
+    const m = marca(arq);
+    if (m !== sig) {
+      try { amostras = lerEventosJsonl(arq); sig = m; } catch { /* arquivo sendo regravado: fica com a leitura anterior */ }
+    }
+    return amostras;
+  };
+}
+
 export const AVISO_CRITERIOS = 'criterios.json ilegível — mostrando a última leitura boa';
 const AVISO_CRITERIOS_SEM_BOA = 'criterios.json ilegível';
 
@@ -138,9 +150,11 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   const arqHistorico = join(home, 'historico.jsonl');
   const lerTarefa = leitorTarefa(projeto);
   const lerHistorico = leitorHistorico(home); // cache por (mtime, tamanho); lê só o que foi acrescentado
+  const arqLimite = join(home, 'limite.jsonl');
+  const lerLimite = leitorLimite(arqLimite);
 
   const estadoAtual = () => montarEstado({
-    eventos: lerHistorico(), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, agora: Date.now(),
+    eventos: lerHistorico(), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, limite: lerLimite(), agora: Date.now(),
   });
 
   let portaReal = 0;
@@ -302,7 +316,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
   const assinatura = () => {
     const dir = ativaDir(projeto);
-    const arqs = [arqHistorico, join(dirProjeto(projeto), 'ativa')];
+    const arqs = [arqHistorico, arqLimite, join(dirProjeto(projeto), 'ativa')];
     if (dir) arqs.push(join(dir, 'estado.json'), join(dir, 'criterios.json'), join(dir, 'eventos.jsonl'));
     return { sig: arqs.map(marca).join('|') + `|${dir}`, dir };
   };

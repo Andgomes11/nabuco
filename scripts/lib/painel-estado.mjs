@@ -1,6 +1,7 @@
 import { calcularMetricas } from './metricas.mjs';
 import { PAPEIS } from './constantes.mjs';
 import { pendencias } from './criterios.mjs';
+import { resumirLimite } from './limite.mjs';
 
 export const FUNCIONARIOS = ['gerente', ...PAPEIS];
 export const NIVEL_NUM = { 'Júnior': 1, 'Pleno': 2, 'Sênior': 3, 'Especialista': 4 };
@@ -36,7 +37,7 @@ function agenteAberto(meus) {
   });
 }
 
-export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora }) {
+export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora }) {
   const evs = lista(eventos);
   const evsTarefa = lista(tarefa?.eventos);
   const limite30 = agora - EXPIRA;
@@ -93,5 +94,7 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, agora 
     };
   }
   // versao usa eventos.length cru de propósito: são índices no arquivo de histórico
-  return { versao: Array.isArray(eventos) ? eventos.length : 0, projeto, tarefa: t, funcionarios };
+  // limite do plano: consumo "da tarefa" é aproximado (o limite é da conta, inclui outras sessões)
+  const plano = resumirLimite(limite, { agora, inicioTarefa: tarefa?.estado?.criada });
+  return { versao: Array.isArray(eventos) ? eventos.length : 0, projeto, tarefa: t, funcionarios, limite: plano };
 }

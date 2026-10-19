@@ -15,7 +15,7 @@ try { modelo = await import(`./modelo.mjs?k=${encodeURIComponent(CHAVE)}`); } ca
 }
 const {
   aparenciaMonitor, rotuloNivel, formatarAtributo, formatarIndicador,
-  seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, INDICADORES, ATRIBUTOS,
+  seta, urlAvatar, urlFontes, urlFontesLicao, resumoGate, resumoLimite, INDICADORES, ATRIBUTOS,
 } = modelo;
 const comChave = caminho => `${caminho}${caminho.includes('?') ? '&' : '?'}k=${encodeURIComponent(CHAVE)}`;
 
@@ -315,6 +315,40 @@ function renderizarCabecalho(e) {
     : 'gate: nenhum critério definido');
 }
 
+// ---------- limite do plano ----------
+const hora = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' });
+const diaHora = new Intl.DateTimeFormat('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+function quando(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toDateString() === new Date().toDateString() ? hora.format(d) : diaHora.format(d);
+}
+function renderizarLimite(l) {
+  const caixa = $('plano');
+  const r = resumoLimite(l);
+  caixa.hidden = !r;
+  if (!r) return;
+  const alvo = $('plano-janelas');
+  alvo.replaceChildren();
+  if (!r.janelas.length) alvo.append(el('span', 'vazio', 'sem dado recente'));
+  for (const j of r.janelas) {
+    const s = el('span', 'janela');
+    s.dataset.alto = String(j.alto);
+    const barra = el('span', 'barra');
+    barra.setAttribute('aria-hidden', 'true');
+    const cheia = el('span', 'barra-cheia');
+    cheia.style.width = `${j.pct}%`; // CSSOM: permitido pela CSP (só atributo style inline é bloqueado)
+    barra.append(cheia);
+    s.append(el('span', 'j-rotulo', j.rotulo), barra, el('span', 'j-pct', j.texto));
+    if (j.renova) s.append(el('span', 'j-renova', `renova ${quando(j.renova)}`));
+    alvo.append(s);
+  }
+  if (r.antigo && r.atualizado) alvo.append(el('span', 'vazio', `dado de ${quando(r.atualizado)}`));
+  const t = $('plano-tarefa');
+  t.textContent = r.tarefa ?? '';
+  t.hidden = !r.tarefa;
+}
+
 // só a situação da conexão é anunciada; a contagem de eventos muda o tempo todo e fica fora da região viva
 function definirConexao(situacao, texto) {
   const c = $('conexao');
@@ -332,6 +366,7 @@ function aplicarEstado(e) {
   conectado = true; // Estado novo do servidor: os monitores voltam a refletir dado vivo
   $('erro-geral').hidden = true;
   renderizarCabecalho(e);
+  renderizarLimite(e.limite);
   renderizarMonitores(e.funcionarios);
   if ($('conexao').dataset.estado === 'ao-vivo') definirConexao('ao-vivo', textoAoVivo());
   if (dossieAberto && versaoAnterior !== undefined && e.versao !== dossieAberto.versao) $('d-aviso').hidden = false;

@@ -62,6 +62,7 @@ Ao fechar uma tarefa, `/nabuco:retro` (`$retro`) propõe casos e lições a part
 - Funciona offline, sem dependências. Para fechar, encerre o processo.
 - Avatares em `assets/avatares/<papel>-<nivel>.jpg`; imagem ausente cai numa silhueta.
 - Opções: `--porta <n>`, `--sem-abrir`.
+- **Limite do plano** (só Claude Code, planos Pro/Max): o cabeçalho mostra o uso da janela de 5 h e da semanal, com o horário de renovação, e quanto a tarefa ativa consumiu desde que foi criada. O consumo da tarefa é aproximado, porque o limite é da conta e inclui outras sessões no mesmo período. Não existe consumo por funcionário. O dado vem da status line do nabuco, que o `/nabuco:setup` oferece instalar (`setup.mjs --status-line`). Ela grava em `~/.nabuco/limite.jsonl` e, se você já tinha uma status line, continua mostrando a sua.
 
 ## Modelos por funcionário
 

@@ -16,7 +16,7 @@ export const claudeHome = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(),
 
 let v;
 try {
-  ({ values: v } = parseArgs({ options: { codex: { type: 'string', default: 'auto' }, 'checadores-locais': { type: 'boolean', default: false } } }));
+  ({ values: v } = parseArgs({ options: { codex: { type: 'string', default: 'auto' }, 'checadores-locais': { type: 'boolean', default: false }, 'status-line': { type: 'boolean', default: false } } }));
 } catch (e) { console.error(`nabuco: ${e.message}`); process.exit(2); }
 if (!['auto', 'sim', 'nao'].includes(v.codex)) { console.error('nabuco: --codex deve ser auto, sim ou nao'); process.exit(2); }
 
@@ -72,6 +72,34 @@ if (v['checadores-locais']) {
   }
   config.checadores_locais = true;
   ok(`checadores instalados como agentes locais em ${destino} (nabuco-<papel>)`);
+}
+
+// 6. status line (limite do plano no painel). Instala só com --status-line; depois de instalada, cada
+// setup recopia o script (o caminho do plugin muda a cada versão, por isso ele mora em ~/.nabuco/bin)
+if (v['status-line'] || config.status_line) {
+  const destino = join(home, 'bin', 'status-line.mjs');
+  mkdirSync(dirname(destino), { recursive: true });
+  copyFileSync(join(RAIZ, 'scripts', 'status-line.mjs'), destino);
+  const comando = `node "${destino}"`;
+  const arqSettings = join(claudeHome(), 'settings.json');
+  let settings = {};
+  let legivel = true;
+  if (existsSync(arqSettings)) {
+    try { settings = lerJson(arqSettings); } catch (e) { legivel = false; aviso(`${arqSettings} ilegível (${e.message}); não instalei a status line`); }
+  }
+  if (legivel) {
+    const atual = settings.statusLine?.command;
+    if (atual !== comando) {
+      // status line que já existia continua aparecendo: a do nabuco só registra o limite e repassa
+      if (typeof atual === 'string' && atual.trim() && !atual.includes('status-line.mjs')) config.status_line_anterior = atual;
+      settings.statusLine = { ...(settings.statusLine ?? {}), type: 'command', command: comando };
+      mkdirSync(claudeHome(), { recursive: true });
+      escreverJson(arqSettings, settings);
+    }
+    config.status_line = true;
+    ok(`status line do nabuco em ${arqSettings} (registra o limite do plano para o painel)`);
+    if (config.status_line_anterior) console.log(`ℹ️ sua status line anterior continua aparecendo: ${config.status_line_anterior}`);
+  }
 }
 
 escreverJson(arqConfig, config);
