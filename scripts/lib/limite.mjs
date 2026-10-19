@@ -17,8 +17,9 @@ export function normalizarAmostras(amostras) {
     .sort((x, y) => x.t - y.t);
 }
 
-// pontos percentuais consumidos na janela `chave` desde `inicio` (ms). Soma os aumentos dentro de cada
-// janela; quando a janela renova, o valor novo conta inteiro (a janela nova começou do zero).
+// pontos percentuais consumidos na janela `chave` desde `inicio` (ms). Dentro de uma janela o uso só sobe:
+// conta o quanto o pico subiu (valor menor é amostra velha de outra sessão, não "devolução"); quando a
+// janela renova, o valor novo conta inteiro (a janela nova começou do zero).
 // Sem amostra antes do início, a primeira só conta se a janela dela começou depois do início.
 export function consumoDesde(amostras, inicio, chave) {
   if (!finito(inicio)) return null;
@@ -26,25 +27,31 @@ export function consumoDesde(amostras, inicio, chave) {
   for (const a of amostras) {
     const j = a[chave];
     if (!j) continue;
-    if (a.t <= inicio) { anterior = j; continue; }
+    const mesma = anterior && anterior.renova === j.renova;
+    const pico = mesma ? { ...j, pct: Math.max(anterior.pct, j.pct) } : j;
+    if (a.t <= inicio) { anterior = pico; continue; }
     viu = true;
-    if (anterior && anterior.renova === j.renova) total += Math.max(0, j.pct - anterior.pct);
+    if (mesma) total += pico.pct - anterior.pct;
     else if (anterior) total += j.pct;
     else if (finito(j.renova) && j.renova * 1000 - DURACAO[chave] >= inicio) total += j.pct;
-    anterior = j;
+    anterior = pico;
   }
   return viu || anterior ? Math.round(total * 10) / 10 : null;
 }
 
+// o pico da janela mais recente (amostras menores da mesma janela são de sessões com dado velho);
 // janela já renovada não vale mais: o percentual dela é de um período encerrado
 function atual(amostras, chave, agora) {
+  let j = null;
   for (let i = amostras.length - 1; i >= 0; i--) {
-    const j = amostras[i][chave];
-    if (!j) continue;
-    if (finito(j.renova) && j.renova * 1000 <= agora) return null;
-    return { pct: j.pct, renova: finito(j.renova) ? new Date(j.renova * 1000).toISOString() : null };
+    const x = amostras[i][chave];
+    if (!x) continue;
+    if (!j) j = x;
+    else if (x.renova === j.renova) { if (x.pct > j.pct) j = x; }
+    else break;
   }
-  return null;
+  if (!j || (finito(j.renova) && j.renova * 1000 <= agora)) return null;
+  return { pct: j.pct, renova: finito(j.renova) ? new Date(j.renova * 1000).toISOString() : null };
 }
 
 // o que o painel mostra; null quando não há nenhuma amostra (status line não instalada ou plano sem limite)

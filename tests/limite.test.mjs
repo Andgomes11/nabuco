@@ -22,6 +22,13 @@ test('consumoDesde: soma os aumentos desde o início, a partir da amostra anteri
   assert.equal(consumoDesde(lista, T0, 'h5'), 11.5);
 });
 
+test('duas sessões: amostra menor na mesma janela é dado velho — não infla o consumo nem baixa o atual', () => {
+  const r = T0 + 2 * 60 * MIN;
+  const oscila = [am(T0 - MIN, 51, r), am(T0 + MIN, 59, r), am(T0 + 2 * MIN, 51, r), am(T0 + 3 * MIN, 60, r), am(T0 + 4 * MIN, 51, r), am(T0 + 5 * MIN, 63, r), am(T0 + 6 * MIN, 51, r)];
+  assert.equal(consumoDesde(normalizarAmostras(oscila), T0, 'h5'), 12); // 51 → 63, não 8+9+12
+  assert.equal(resumirLimite(oscila, { agora: T0 + 7 * MIN }).h5.pct, 63);
+});
+
 test('consumoDesde: janela renovada no meio conta o valor novo inteiro', () => {
   const r1 = T0 + 30 * MIN, r2 = r1 + DURACAO.h5;
   const lista = normalizarAmostras([am(T0 - MIN, 90, r1), am(T0 + 10 * MIN, 95, r1), am(T0 + 40 * MIN, 6, r2)]);
@@ -79,10 +86,17 @@ test('status-line.mjs: grava amostra só quando muda, imprime o uso e repassa a 
     rodar({ rate_limits: { five_hour: { used_percentage: 43, resets_at: 1790000000 } } });
     linhas = readFileSync(arq, 'utf8').trim().split('\n');
     assert.equal(linhas.length, 2);
+    // outra sessão parada repassando valor velho (menor, mesma janela): não grava nem baixa a linha
+    r = rodar({ rate_limits: { five_hour: { used_percentage: 30, resets_at: 1790000000 } } });
+    assert.equal(r.stdout, 'nabuco · 5h 43%\n');
+    assert.equal(readFileSync(arq, 'utf8').trim().split('\n').length, 2);
+    // janela nova (renova diferente) com valor menor é real: grava
+    rodar({ rate_limits: { five_hour: { used_percentage: 2, resets_at: 1790018000 } } });
+    assert.equal(readFileSync(arq, 'utf8').trim().split('\n').length, 3);
     // sem rate_limits (API key, antes da 1ª resposta): não grava nada e não quebra
     r = rodar({ model: {} });
     assert.equal(r.stdout, 'nabuco\n');
-    assert.equal(readFileSync(arq, 'utf8').trim().split('\n').length, 2);
+    assert.equal(readFileSync(arq, 'utf8').trim().split('\n').length, 3);
     writeFileSync(join(base, 'n', 'config.json'), JSON.stringify({ status_line_anterior: 'echo minha-linha' }));
     assert.equal(rodar(entrada).stdout.trim(), 'minha-linha');
   } finally { rmSync(base, { recursive: true, force: true }); }

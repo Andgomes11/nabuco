@@ -26,16 +26,18 @@ function ultimaLinha() {
   } catch { return null; }
 }
 
+// dentro da mesma janela o uso só sobe: valor menor vem de outra sessão parada, com dado velho
+const maisNovo = (novo, ult) => (novo && ult && novo.renova === ult.renova && novo.pct < ult.pct ? ult : novo);
 const igual = (a, b) => (a?.pct ?? null) === (b?.pct ?? null) && (a?.renova ?? null) === (b?.renova ?? null);
 
 // grava só quando muda: a status line roda a cada atualização da tela
 function registrarAmostra(entrada) {
   const rl = entrada?.rate_limits;
-  const h5 = janela(rl?.five_hour);
-  const sem = janela(rl?.seven_day);
+  const ult = ultimaLinha();
+  const h5 = maisNovo(janela(rl?.five_hour), ult?.h5);
+  const sem = maisNovo(janela(rl?.seven_day), ult?.sem);
   if (!h5 && !sem) return null;
   const amostra = { ts: new Date().toISOString(), ...(h5 && { h5 }), ...(sem && { sem }) };
-  const ult = ultimaLinha();
   if (ult && igual(ult.h5, h5) && igual(ult.sem, sem)) return amostra;
   mkdirSync(home, { recursive: true });
   appendFileSync(ARQ, JSON.stringify(amostra) + '\n');
