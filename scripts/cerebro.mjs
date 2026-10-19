@@ -312,9 +312,12 @@ const comandos = {
       if (ativa) dir = ativa.dir;
       else {
         const pasta = dirTarefas(projeto);
-        const nomes = existsSync(pasta) ? readdirSync(pasta, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name).sort().reverse() : [];
+        // O nome só traz o dia; no mesmo dia desempata pelo "criada" do estado.json, não pelo slug.
+        const criada = n => { try { return String(lerJson(join(pasta, n, 'estado.json'))?.criada ?? ''); } catch { return ''; } };
+        const nomes = existsSync(pasta) ? readdirSync(pasta, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name) : [];
         if (!nomes.length) throw new ErroRegra('nenhuma tarefa encontrada neste projeto');
-        dir = join(pasta, nomes[0]);
+        const chave = n => `${n.slice(0, 10)}|${criada(n)}|${n}`;
+        dir = join(pasta, nomes.sort((a, b) => chave(b).localeCompare(chave(a)))[0]);
       }
     }
     console.log(JSON.stringify(coletarSinais(dir), null, 2));

@@ -329,6 +329,14 @@ test('sinais usa a pasta mais recente e --tarefa inexistente → exit 1', () => 
   assert.equal(run(['sinais', '--tarefa', 'nao-existe']).status, 1);
 });
 
+test('sinais sem tarefa ativa: no mesmo dia vale a criada por último, não a ordem do slug', () => {
+  const t = (n, criada) => { const d = join(proj, '.nabuco', 'tarefas', n); mkdirSync(d, { recursive: true }); writeFileSync(join(d, 'estado.json'), JSON.stringify({ fase: 'concluida', criada })); };
+  t('2026-10-19-subtrai', '2026-10-19T13:32:53.103Z');
+  t('2026-10-19-corrigir-media', '2026-10-19T13:38:50.334Z');
+  t('2026-10-19-soma', '2026-10-19T13:30:17.390Z');
+  assert.equal(JSON.parse(run(['sinais']).stdout).tarefa, '2026-10-19-corrigir-media');
+});
+
 test('higiene --papel filtra as propostas pelo papel', () => {
   const ruim = p => `# Lições — ${p}
 
