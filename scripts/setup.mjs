@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync, appendFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +16,7 @@ export const claudeHome = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(),
 
 let v;
 try {
-  ({ values: v } = parseArgs({ options: { codex: { type: 'string', default: 'auto' }, 'checadores-locais': { type: 'boolean', default: false }, 'status-line': { type: 'boolean', default: false } } }));
+  ({ values: v } = parseArgs({ options: { codex: { type: 'string', default: 'auto' }, 'checadores-locais': { type: 'boolean', default: false }, 'status-line': { type: 'boolean', default: false }, 'cerebro-remoto': { type: 'string' } } }));
 } catch (e) { console.error(`nabuco: ${e.message}`); process.exit(2); }
 if (!['auto', 'sim', 'nao'].includes(v.codex)) { console.error('nabuco: --codex deve ser auto, sim ou nao'); process.exit(2); }
 
@@ -100,6 +100,57 @@ if (v['status-line'] || config.status_line) {
     ok(`status line do nabuco em ${arqSettings} (registra o limite do plano para o painel)`);
     if (config.status_line_anterior) console.log(`ℹ️ sua status line anterior continua aparecendo: ${config.status_line_anterior}`);
   }
+}
+
+// 7. sincronização do cérebro com um repositório git remoto (privado): casos, lições e histórico seguem
+// para todas as máquinas. O que é da máquina (limite do plano, bin/, config) fica fora.
+const IGNORAR = ['limite.jsonl', 'bin/', 'config.json', 'sync.log', '.sync.lock', '*.tmp'];
+if (v['cerebro-remoto'] !== undefined) {
+  const url = v['cerebro-remoto'].trim();
+  const git = args => spawnSync('git', ['-C', home, ...args], { encoding: 'utf8', timeout: 120000 });
+  const erro = r => (r.error?.message || r.stderr || r.stdout || '').trim();
+  const temCommit = () => git(['rev-parse', '--verify', '-q', 'HEAD']).status === 0;
+  if (!url) { console.error('nabuco: --cerebro-remoto precisa da URL do repositório'); process.exit(2); }
+  if (!existsSync(join(home, '.git'))) { console.error(`❌ ${home} não é um repositório git (instale o git e rode o setup de novo)`); process.exit(1); }
+  if (git(['remote', 'get-url', 'origin']).status === 0) git(['remote', 'set-url', 'origin', url]);
+  else git(['remote', 'add', 'origin', url]);
+  const f = git(['fetch', '-q', 'origin']);
+  if (f.status !== 0) { console.error(`❌ não consegui acessar ${url}: ${erro(f)}`); process.exit(1); }
+  const remotoTem = git(['rev-parse', '--verify', '-q', 'origin/main']).status === 0;
+  if (remotoTem && !temCommit()) {
+    // máquina nova: o cérebro vem do remoto. Eventos já gravados aqui (sem commit) são reaplicados no fim
+    const arqHist = join(home, 'historico.jsonl');
+    const local = existsSync(arqHist) ? readFileSync(arqHist, 'utf8') : '';
+    for (const n of ['historico.jsonl', '.gitignore', '.gitattributes']) rmSync(join(home, n), { force: true });
+    const c = git(['checkout', '-q', '-B', 'main', 'origin/main']);
+    if (c.status !== 0) {
+      if (local) writeFileSync(arqHist, local);
+      console.error(`❌ não consegui trazer o cérebro do remoto: ${erro(c)}`);
+      process.exit(1);
+    }
+    if (local.trim()) appendFileSync(arqHist, local.endsWith('\n') ? local : local + '\n');
+    ok(`cérebro trazido de ${url}`);
+  }
+  writeFileSync(join(home, '.gitignore'), IGNORAR.join('\n') + '\n');
+  // o histórico só recebe linhas no fim: o merge "union" junta as duas máquinas sem conflito
+  writeFileSync(join(home, '.gitattributes'), 'historico.jsonl merge=union\n');
+  git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', ...IGNORAR.filter(x => !x.includes('*'))]);
+  git(['add', '-A']);
+  if (git(['diff', '--cached', '--quiet']).status === 1) git(['commit', '-q', '-m', 'sync: configura sincronização']);
+  if (remotoTem && temCommit()) {
+    const m = git(['merge', '-q', '--no-edit', '--allow-unrelated-histories', 'origin/main']);
+    if (m.status !== 0) {
+      git(['merge', '--abort']);
+      console.error(`❌ o cérebro local e o remoto divergem e não deu para juntar sozinho: ${erro(m)}`);
+      process.exit(1);
+    }
+  }
+  git(['branch', '-q', '-M', 'main']);
+  const p = git(['push', '-q', '-u', 'origin', 'main']);
+  if (p.status !== 0) { console.error(`❌ não consegui enviar para ${url}: ${erro(p)}`); process.exit(1); }
+  config.cerebro_remoto = url;
+  config.sincronizar = true;
+  ok(`cérebro sincronizado com ${url} (no início de cada sessão e depois de cada caso ou lição)`);
 }
 
 escreverJson(arqConfig, config);

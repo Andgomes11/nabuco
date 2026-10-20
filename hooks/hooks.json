@@ -1,5 +1,8 @@
 {
   "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sincronizar.mjs\" --fundo" } ] }
+    ],
     "Stop": [
       { "hooks": [ { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/gate-evidencia.mjs\"" } ] }
     ],
