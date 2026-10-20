@@ -93,6 +93,8 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite
       papel,
       nome: nomes?.[papel] ?? (papel === 'gerente' ? 'Gerente' : papel),
       estado, atividade, nivel, nivelNum, amostra,
+      // participou da tarefa aberta (ainda não conta na amostra, que é de tarefas concluídas)
+      naTarefaAberta: papel === 'gerente' ? Boolean(tarefa) : evsTarefa.some(e => e.papel === papel),
       provisorio: m.provisorio ?? true,
       avatar: avatares?.has(arquivo) ? arquivo : null,
       // gerente não ganha nível (metricas.mjs), então "sem avaliação" não o deixa cinza

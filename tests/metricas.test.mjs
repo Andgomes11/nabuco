@@ -124,19 +124,25 @@ test('lerHistorico: ausente => [], ignora invalidas e sem tipo', () => {
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
-test('checador não ganha nível só por participar: escapes contam, mas só pesam com achados avaliáveis (achado final #3)', () => {
+test('checador: só participar não dá nota; com achados avaliáveis ou 3+ tarefas, escapes pesam (achado final #3)', () => {
   const evs = muitas(1, 12).concat(Array.from({ length: 12 }, (_, i) => ev('agente_inicio', `t${i + 1}`, 'revisor')));
   const m = calcularMetricas(evs);
   assert.equal(m.revisor.amostra, 12);
   assert.equal(m.revisor.escapes, 0);
   assert.equal(m.revisor.achados_uteis, null);
-  assert.equal(m.revisor.score, null);
-  assert.equal(m.revisor.nivel, null);
+  // com 3+ tarefas, "nada escapou depois da verificação dele" já conta (tester/arquiteto quase não acham alto)
+  assert.equal(m.revisor.score, 1);
+  // com menos de 3, só participar não dá nota
+  const duas = calcularMetricas(muitas(1, 2).concat([ev('agente_inicio', 't1', 'revisor'), ev('agente_inicio', 't2', 'revisor')]));
+  assert.equal(duas.revisor.amostra, 2);
+  assert.equal(duas.revisor.score, null);
+  assert.equal(duas.revisor.nivel, null);
   assert.equal(m.gerente.escapes, null);
   assert.equal(m.gerente.nivel, null);
-  // com votos, o checador passa a ter nível pelos votos
-  const v = calcularMetricas([...evs, ev('licao_usada', null, 'revisor', { util: true })]);
-  assert.equal(v.revisor.score, 1);
+  // escape depois da revisão dele pesa contra
+  const esc = calcularMetricas([...evs, ev('correcao_usuario', 't1', 'dev', { apos_pronto: true })]);
+  assert.equal(esc.revisor.escapes, 1);
+  assert.ok(esc.revisor.score < 1);
   assert.equal(m.dev.escapes, 0);
 });
 

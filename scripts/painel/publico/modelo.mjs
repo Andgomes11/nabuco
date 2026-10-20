@@ -32,7 +32,10 @@ export function aparenciaMonitor(f, conectado) {
 
 export function rotuloNivel(f) {
   if (!f || typeof f.nivel !== 'string' || !f.nivel) {
-    return finito(f?.amostra) && f.amostra > 0 && f.amostra < 3 ? `em avaliação (${f.amostra}/3)` : 'sem avaliação';
+    const n = finito(f?.amostra) ? f.amostra : 0;
+    if (n >= 3) return `${n} tarefas · sem indicador`;
+    if (n > 0) return `em avaliação (${n}/3)`;
+    return f?.naTarefaAberta && f.papel !== 'gerente' ? 'em avaliação (tarefa aberta)' : 'sem avaliação';
   }
   return f.provisorio ? `${f.nivel} · provisório` : f.nivel;
 }

@@ -26,7 +26,8 @@ test('atributos: fórmulas das Decisões', () => {
   assert.equal(atributos({ recorrencia: null, aceitacao_1a: 1, escapes: 1, amostra: 2 }).confiabilidade, 0.5);
   // checador: precisão vem dos achados que viraram correção; só participar não dá confiabilidade
   assert.deepEqual(atributos({ achados_uteis: 0.5, escapes: 1, amostra: 4 }), { faro: null, precisao: 0.5, confiabilidade: 0.75 });
-  assert.equal(atributos({ achados_uteis: null, escapes: 0, amostra: 12 }).confiabilidade, null);
+  assert.equal(atributos({ achados_uteis: null, escapes: 0, amostra: 2 }).confiabilidade, null);
+  assert.equal(atributos({ achados_uteis: null, escapes: 0, amostra: 12 }).confiabilidade, 1);
   assert.deepEqual(atributos({ turnos_ate_causa: null, aceitacao_1a: null, recorrencia: null, escapes: null, amostra: 0 }), NULO);
   assert.deepEqual(atributos(undefined), NULO);
 });

@@ -26,7 +26,7 @@ export function atributos(m) {
   const partes = [];
   if (rec !== null) partes.push(1 - rec);
   // sem aceitação nem achados avaliáveis (checador que só participou), "nada escapou" não é mérito
-  const avaliavel = num(m.aceitacao_1a) !== null || num(m.achados_uteis) !== null;
+  const avaliavel = num(m.aceitacao_1a) !== null || num(m.achados_uteis) !== null || (num(m.amostra) ?? 0) >= AMOSTRA_NIVEL;
   if (esc !== null && avaliavel && amostra !== null && amostra > 0) partes.push(1 - Math.min(1, esc / amostra));
   return { faro, precisao, confiabilidade: media(partes) };
 }

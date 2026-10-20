@@ -208,3 +208,10 @@ test('nível só aparece a partir de 3 tarefas; antes fica nulo (em avaliação)
   const tres = montarEstado({ ...base, eventos: [...tarefaDev(1), ...tarefaDev(2), ...tarefaDev(3)] });
   assert.equal(func(tres, 'dev').nivel, 'Especialista');
 });
+
+test('naTarefaAberta: quem participou da tarefa aberta é marcado mesmo sem tarefa concluída', () => {
+  const est = montarEstado({ ...base, eventos: [], tarefa: tar('executando', [ev('agente_inicio', 'arquiteto', 5), ev('agente_fim', 'arquiteto', 4)]) });
+  assert.equal(func(est, 'arquiteto').naTarefaAberta, true);
+  assert.equal(func(est, 'arquiteto').amostra, 0);
+  assert.equal(func(est, 'devops').naTarefaAberta, false);
+});

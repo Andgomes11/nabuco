@@ -157,7 +157,7 @@ function tabelaMetricas(m, papeis) {
   const linhas = papeis.map(p => {
     const x = m[p];
     const nivel = x.amostra > 0 && x.amostra < AMOSTRA_NIVEL ? `em avaliação (${x.amostra}/${AMOSTRA_NIVEL})`
-      : x.nivel === null ? '—' : x.provisorio ? `${x.nivel} (provisório)` : x.nivel;
+      : x.nivel === null ? (x.amostra >= AMOSTRA_NIVEL ? 'sem indicador' : '—') : x.provisorio ? `${x.nivel} (provisório)` : x.nivel;
     return [p, nivel, String(x.amostra), pct(x.aceitacao_1a), dec(x.tentativas_ate_verde), pct(x.recorrencia), dec(x.turnos_ate_causa), x.escapes === null ? '—' : String(x.escapes), pct(x.pct_util), String(x.promocoes)];
   });
   const larg = cab.map((c, i) => Math.max(c.length, ...linhas.map(l => l[i].length)));

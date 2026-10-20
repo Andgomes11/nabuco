@@ -1,6 +1,6 @@
 import { readFileSync, existsSync, statSync, openSync, fstatSync, readSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
-import { PAPEIS_CEREBRO, ESCRITORES, AMOSTRA_MINIMA, JANELA_TAREFAS } from './constantes.mjs';
+import { PAPEIS_CEREBRO, ESCRITORES, AMOSTRA_MINIMA, JANELA_TAREFAS, AMOSTRA_NIVEL } from './constantes.mjs';
 
 const ehObj = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const dadosDe = e => (ehObj(e.dados) ? e.dados : {});
@@ -163,9 +163,10 @@ export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
       ? participadas.flat().filter(p => p.e.tipo === 'correcao_usuario' && doPapel(p) && dadosDe(p.e).apos_pronto === true)
       : checador ? participadas.flat().filter(p => p.e.tipo === 'correcao_usuario' && dadosDe(p.e).apos_pronto === true) : [];
     const escapes = escritor || checador ? escapou.length : null;
-    // spec 7.5: ninguém ganha nível só por participar. O checador só é avaliado por escapes quando
-    // também tem achados avaliáveis; sem isso, "nada escapou" seria nota por estar presente
-    const contaEscapes = escritor || (checador && achados_uteis !== null);
+    // spec 7.5: ninguém ganha nível só por participar. O checador é avaliado por escapes quando tem
+    // achados avaliáveis ou a partir de AMOSTRA_NIVEL tarefas: aí "nada escapou depois da verificação
+    // dele" já é resultado (tester e arquiteto quase nunca geram achado alto), não mera presença
+    const contaEscapes = escritor || (checador && (achados_uteis !== null || amostra >= AMOSTRA_NIVEL));
 
     const votos = meus.filter(p => p.e.tipo === 'licao_usada' && typeof dadosDe(p.e).util === 'boolean');
     const pct_util = votos.length ? votos.filter(p => dadosDe(p.e).util).length / votos.length : null;

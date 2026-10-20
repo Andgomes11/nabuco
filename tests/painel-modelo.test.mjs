@@ -150,4 +150,7 @@ test('rotuloNivel: em avaliação com 1 ou 2 tarefas, sem avaliação com 0', as
   assert.equal(rotuloNivel({ nivel: null, amostra: 0 }), 'sem avaliação');
   assert.equal(rotuloNivel({ nivel: null, amostra: 2 }), 'em avaliação (2/3)');
   assert.equal(rotuloNivel({ nivel: 'Pleno', amostra: 5, provisorio: true }), 'Pleno · provisório');
+  assert.equal(rotuloNivel({ nivel: null, amostra: 4 }), '4 tarefas · sem indicador');
+  assert.equal(rotuloNivel({ papel: 'devops', nivel: null, amostra: 0, naTarefaAberta: true }), 'em avaliação (tarefa aberta)');
+  assert.equal(rotuloNivel({ papel: 'gerente', nivel: null, amostra: 0, naTarefaAberta: true }), 'sem avaliação');
 });
