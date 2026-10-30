@@ -42,6 +42,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Retrospectiva da tarefa | `/nabuco:retro` | `$retro` |
 | Ver e cuidar das lições | `/nabuco:licoes` | `$licoes` |
 | Abrir o painel Matrix | `/nabuco:painel` | `$painel` |
+| Auditar uma release | `/nabuco:release` | `$release` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
 
@@ -70,6 +71,16 @@ O gate de evidência segura só a sessão do Gerente da tarefa: a que rodou a CL
 - Opções: `--porta <n>`, `--sem-abrir`.
 - **Linha do tempo** (coluna ao lado dos monitores; no celular, embaixo): mostra ao vivo os eventos da tarefa ativa. Inclui fases, cada delegação do Gerente (`→ Dev: <passo>`), início e fim de cada agente com o modelo e a duração, as notas do `T log`, os critérios, os achados dos checadores e o gate.
 - **Limite do plano** (só Claude Code, planos Pro/Max): o cabeçalho mostra o uso da janela de 5 h e da semanal, com o horário de renovação, e quanto a tarefa ativa consumiu desde que foi criada. O consumo da tarefa é aproximado, porque o limite é da conta e inclui outras sessões no mesmo período. Não existe consumo por funcionário. O dado vem da status line do nabuco, que o `/nabuco:setup` oferece instalar (`setup.mjs --status-line`). Ela grava em `~/.nabuco/limite.jsonl` e, se você já tinha uma status line, continua mostrando a sua.
+
+## Release
+
+`/nabuco:release` (`$release`) audita a próxima versão desde a release anterior (data do commit da maior tag semver alcançável do HEAD, com ou sem `v`; sem tag, o último relatório liberado; sem nenhum, todas as tarefas) e só libera com evidência de cada item:
+- **Tarefas**: todas as de `.nabuco/tarefas/` do período precisam estar concluídas (a ativa em andamento conta como não concluída); abandonada é só aviso.
+- **Versões**: `package.json`, `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, `pyproject.toml` e `Cargo.toml` que existirem precisam ser legíveis, concordar, bater com `--versao X.Y.Z` (se informado) e ser maiores que a release anterior (tag ou relatório-base).
+- **Comandos**: os de `.nabuco/release.json` (`{"comandos": ["npm test"]}`), ou `npm test` se houver script `test`; todos precisam sair com 0.
+- **Changelog**: `CHANGELOG.md` com uma seção com conteúdo para a versão.
+
+O relatório vai para `.nabuco/releases/<versao>.md` (saída 0 = liberada, 1 = reprovada); o de uma versão já liberada não é sobrescrito (suba a versão). O auditor só lê o projeto: nunca cria tag, commit, push nem publica.
 
 ## Modelos por funcionário
 
