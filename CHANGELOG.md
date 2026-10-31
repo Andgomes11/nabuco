@@ -4,6 +4,8 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 
 ## Não lançado
 
+## 0.9.0 — 2026-10-31
+
 ### Adicionado
 - Fila de pedidos (`/nabuco:fila` no Claude Code, `$fila` no Codex): o usuário enfileira vários pedidos (com triagem das dúvidas na hora) e o Gerente executa um por vez, cada um como tarefa normal, sem pular aprovação; item abandonado grava a fila como parada (`proximo` devolve a parada em vez do item e `nova --fila` recusa) até `retomar`, com ok do usuário; item que ficou em andamento sem tarefa ativa também conta como parada, e `retomar` o marca como abandonado. CLI `scripts/fila.mjs` (`add`, `listar`, `remover`, `mover`, `proximo`, `config --commit-por-item`, `retomar`) sobre `.nabuco/fila.json`; `fila.json` ilegível dá erro claro e nunca é sobrescrito.
 - `tarefa.mjs nova --fila <id>` marca o item em andamento (validado antes de criar a pasta); `concluir` e `abandonar` fecham o item; `status` mostra a fila.
