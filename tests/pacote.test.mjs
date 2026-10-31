@@ -60,6 +60,6 @@ test('avatares: nomes válidos e até 200 KB', () => {
   }
 });
 
-test('versão 0.7.1 nos três lugares', () => {
-  for (const m of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(j(m).version, '0.7.1', m);
+test('versão 0.8.0 nos três lugares', () => {
+  for (const m of ['package.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json']) assert.equal(j(m).version, '0.8.0', m);
 });

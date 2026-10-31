@@ -73,7 +73,7 @@ O gate de evidência segura só a sessão do Gerente da tarefa: a que rodou a CL
 - Avatares em `assets/avatares/<papel>-<nivel>.jpg`; imagem ausente cai numa silhueta.
 - Opções: `--porta <n>`, `--sem-abrir`.
 - **Linha do tempo** (coluna ao lado dos monitores; no celular, embaixo): mostra ao vivo os eventos da tarefa ativa. Inclui fases, cada delegação do Gerente (`→ Dev: <passo>`), início e fim de cada agente com o modelo e a duração, as notas do `T log`, os critérios, os achados dos checadores e o gate.
-- **Limite do plano** (só Claude Code, planos Pro/Max): o cabeçalho mostra o uso da janela de 5 h e da semanal, com o horário de renovação, e quanto a tarefa ativa consumiu desde que foi criada. O consumo da tarefa é aproximado, porque o limite é da conta e inclui outras sessões no mesmo período. Não existe consumo por funcionário. O dado vem da status line do nabuco, que o `/nabuco:setup` oferece instalar (`setup.mjs --status-line`). Ela grava em `~/.nabuco/limite.jsonl` e, se você já tinha uma status line, continua mostrando a sua.
+- **Limite do plano** (só Claude Code, planos Pro/Max): o cabeçalho mostra o uso da janela de 5 h e da semanal, com o horário de renovação, e quanto a tarefa ativa consumiu desde que foi criada. O consumo da tarefa é aproximado, porque o limite é da conta e inclui outras sessões no mesmo período. O painel não mostra consumo por funcionário; os tokens de cada um ficam no `/nabuco:relatorio`. O dado vem da status line do nabuco, que o `/nabuco:setup` oferece instalar (`setup.mjs --status-line`). Ela grava em `~/.nabuco/limite.jsonl` e, se você já tinha uma status line, continua mostrando a sua.
 
 ## Release
 

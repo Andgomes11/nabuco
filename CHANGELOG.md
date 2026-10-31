@@ -4,12 +4,72 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 
 ## Não lançado
 
+## 0.8.0 — 2026-10-31
+
 ### Adicionado
 - Auditor de release (`/nabuco:release` no Claude Code, `$release` no Codex): confere tarefas, versões, comandos e changelog desde a última release.
 - Vigia de segurança (`/nabuco:vigia` no Claude Code, `$vigia` no Codex): modo `ambiente` (permissões amplas, hooks, MCPs, plugins, `.env` versionado e segredos no histórico do git, sempre mascarados) e modo `deps` (`npm audit` e OSV, com "não verificado" quando não dá para checar); correções propostas uma por vez e só aplicadas com aprovação. O Gerente roda `deps --novos` ao abrir cada tarefa e sugere uma tarefa `sensivel` se surgir vulnerabilidade alta nova.
 - Contratar funcionário (`/nabuco:contratar` no Claude Code, `$contratar` no Codex): entrevista curta, prévia completa e ok antes de gravar; o novo escritor ou checador fica em `~/.nabuco/time/`, é instalado como `nabuco-<papel>` no Claude Code e no Codex e é reconhecido pelo Gerente, cérebro, eventos, métricas, painel, status e setup. CLI `scripts/contratar.mjs` com `validar`, `novo`, `listar`, `instalar` e `remover` (lições e casos ficam); checador só com ferramentas de leitura e nunca sobrescreve agente alheio.
 - Relatório do time (`/nabuco:relatorio` no Claude Code, `$relatorio` no Codex): Markdown do que o time fez num período (`--dias`, `--desde`/`--ate`, `--desde-release`), no projeto atual ou em todos, com resumo, tarefas, checadores, escapes, cérebro, funcionários e qualidade dos dados; `--json` e `--gravar` (`.nabuco/relatorios/`). Só lê e nunca envia.
 - Consumo de tokens: o hook `SubagentStop` soma o `usage` do transcript de cada funcionário do nabuco no Claude Code (entrada, saída, cache leitura/escrita) em `agente_fim`; Codex e eventos antigos ficam como "não medido".
+
+## 0.7.1 — 2026-10-19
+
+### Corrigido
+- Tester e arquiteto (checadores que quase nunca têm achado alto ou médio) passam a ser avaliados por escapes a partir de 3 tarefas; antes ficavam "sem avaliação" mesmo com 3 tarefas.
+- Painel mostra quem participou da tarefa ainda aberta, em vez de parecer que nunca trabalhou. Rótulos: "em avaliação (tarefa aberta)", "em avaliação (n/3)" e "n tarefas · sem indicador".
+
+## 0.7.0 — 2026-10-19
+
+### Adicionado
+- Sincronização do cérebro (`~/.nabuco`) com um repositório git privado entre máquinas: `setup.mjs --cerebro-remoto <url>` liga o remoto (máquina nova traz o cérebro, a primeira envia); `historico.jsonl` junta as máquinas com `merge=union`; limite do plano, `bin/` e config ficam locais.
+- Sincroniza em segundo plano no `SessionStart` e depois de cada caso ou lição; `scripts/sincronizar.mjs` força na hora, com trava contra duas sessões ao mesmo tempo.
+
+## 0.6.1 — 2026-10-19
+
+### Corrigido
+- Limite do plano com várias sessões: a sessão parada repassava o último `rate_limits` recebido e alternava com a ativa (51 ↔ 63%), e o consumo da tarefa somava cada volta. Agora o uso é monotônico dentro da janela: a status line não grava valor menor e o cálculo usa o pico.
+
+## 0.6.0 — 2026-10-19
+
+### Adicionado
+- Aprendizado: `similares` devolve `motivos` e propõe lição já no primeiro caso quando há achado alto ou médio de checador ou sinal precoce; o caso guarda a severidade do achado.
+- `caso-add` marca recorrência sozinho quando o caso se parece com a evidência de uma lição entregue nesta tarefa.
+- `buscar` completa com até 2 casos parecidos ("Casos parecidos (ainda sem lição)") e registra `licoes_entregues`.
+- Métricas dos checadores: `achados_uteis` (achado que virou correção) e escapes depois da revisão.
+- Hook `PostToolUse` (`dono.mjs`) grava a sessão que rodou a CLI de tarefa como dona da tarefa.
+
+### Alterado
+- Nível só a partir de 3 tarefas: painel, dossiê e CLI mostram "em avaliação (n/3)" antes disso; só participar não dá nível.
+- O gate de evidência segura só a sessão do Gerente da tarefa; outra sessão aberta no mesmo projeto não é bloqueada.
+
+## 0.5.0 — 2026-10-19
+
+### Adicionado
+- Linha do tempo ao vivo da tarefa no painel (coluna lateral; no celular, embaixo): fases, delegações, início e fim de agentes com modelo e duração, notas do `T log`, critérios, achados e gate.
+- `T delegar --papel <papel> --passo=<passo>` registra o passo entregue a cada funcionário (evento `delegacao`, com o destino em `dados.para` para não contar como participação nas métricas).
+
+### Alterado
+- `T log` também emite o evento `nota`.
+
+## 0.4.1 — 2026-10-19
+
+### Corrigido
+- O hook ignora `SubagentStop` de agentes internos do Claude Code: fim sem `agent_type` só é gravado se houver o início com o mesmo `agent_id` (e herda o papel dele).
+
+### Alterado
+- O Gerente anuncia cada delegação (`→ Papel: passo`) e cada entrega (`← Papel: entrega`), inclusive dos checadores.
+
+## 0.4.0 — 2026-10-19
+
+### Adicionado
+- Painel mostra o limite do plano (janela de 5 h e semanal) e o consumo aproximado da tarefa ativa.
+- Status line do nabuco grava `rate_limits` em `~/.nabuco/limite.jsonl`; o setup oferece instalar (`--status-line`) preservando a status line anterior.
+
+## 0.3.3 — 2026-10-19
+
+### Corrigido
+- Painel mostra o avatar colorido de quem está trabalhando, mesmo sem avaliação; o gerente nunca fica cinza.
 
 ## 0.3.2 — 2026-10-19
 
