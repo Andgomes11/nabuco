@@ -6,6 +6,7 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 
 ### Adicionado
 - Auditor de release (`/nabuco:release` no Claude Code, `$release` no Codex): confere tarefas, versões, comandos e changelog desde a última release.
+- Vigia de segurança (`/nabuco:vigia` no Claude Code, `$vigia` no Codex): modo `ambiente` (permissões amplas, hooks, MCPs, plugins, `.env` versionado e segredos no histórico do git, sempre mascarados) e modo `deps` (`npm audit` e OSV, com "não verificado" quando não dá para checar); correções propostas uma por vez e só aplicadas com aprovação. O Gerente roda `deps --novos` ao abrir cada tarefa e sugere uma tarefa `sensivel` se surgir vulnerabilidade alta nova.
 
 ## 0.3.2 — 2026-10-19
 

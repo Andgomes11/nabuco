@@ -43,6 +43,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Ver e cuidar das lições | `/nabuco:licoes` | `$licoes` |
 | Abrir o painel Matrix | `/nabuco:painel` | `$painel` |
 | Auditar uma release | `/nabuco:release` | `$release` |
+| Vigiar segurança do ambiente e dependências | `/nabuco:vigia` | `$vigia` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
 
@@ -81,6 +82,18 @@ O gate de evidência segura só a sessão do Gerente da tarefa: a que rodou a CL
 - **Changelog**: `CHANGELOG.md` com uma seção com conteúdo para a versão.
 
 O relatório vai para `.nabuco/releases/<versao>.md` (saída 0 = liberada, 1 = reprovada); o de uma versão já liberada não é sobrescrito (suba a versão). O auditor só lê o projeto: nunca cria tag, commit, push nem publica.
+
+## Vigia
+
+`/nabuco:vigia` (`$vigia`) olha a segurança além do diff, em dois modos (`/nabuco:vigia ambiente` ou `deps` roda só um):
+- **ambiente**: permissões amplas (`bypassPermissions`, `allow` com `Bash`/`*`, Codex `never` + `danger-full-access`), hooks (inventário; `curl | sh`, `iex`, base64 executado), MCPs (segredo literal em `env`/`headers`/`args`, `http://` remoto, `npx -y` sem versão), plugins e marketplaces, `.env` versionado e segredos no histórico do git (`--max-commits`, padrão 1000).
+- **deps**: vulnerabilidades conhecidas via `npm audit` (com `package-lock.json`) e [OSV](https://osv.dev) para `requirements.txt`, `poetry.lock`, `Cargo.lock`, `go.mod`, `pnpm-lock.yaml` e `yarn.lock`. Falha de rede ou de comando vira **não verificado**, nunca "sem vulnerabilidades".
+
+Achados têm severidade alta, media, baixa ou info (saída 1 se houver alta ou media). A skill propõe a correção de cada um, um por vez, e só aplica o que você aprovar; atualizar dependência vira sugestão de tarefa `sensivel`.
+O `deps` guarda em `.nabuco/vigia/deps.json`, por lockfile verificado por completo, a data, o hash e os ids achados; com `--novos` não recheca o lockfile que não mudou nas últimas 24h e mostra só ids que não estavam lá (o que ficou **não verificado** aparece sempre). O Gerente roda `deps --novos` ao abrir cada tarefa.
+
+Lê `~/.claude/settings.json`, `.claude/settings*.json`, `.mcp.json`, os `mcpServers` do `~/.claude.json` (nada mais dele), os plugins e marketplaces instalados e `~/.codex/config.toml`. Nunca lê o `~/.codex/auth.json` nem credenciais.
+Nunca mostra um segredo inteiro (só os 4 primeiros caracteres e `…`), nunca reescreve o histórico do git nem faz force push (segredo no histórico → rotacione a chave no provedor), nunca roda `npm audit fix --force` e nunca faz commit.
 
 ## Modelos por funcionário
 

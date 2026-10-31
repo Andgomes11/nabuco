@@ -24,6 +24,7 @@ Antes, rode `C buscar --papel gerente --texto="<pedido>"` e aplique as lições 
 
 Tipo → escritor: `bug` → debugger · `ui` → designer · `infra` → devops · `docs` → docs · `feature`/`refactor` → dev · `estrutural` → consulte o arquiteto antes de planejar, depois dev.
 Se o usuário forçar um tamanho, obedeça. Rode: `T nova --slug <curto> --tamanho <t> --tipo <tipo>` (imprime a pasta da tarefa).
+Depois, rode `node "$NABUCO/scripts/vigia.mjs" deps --novos`: vulnerabilidade **alta** nova → avise o usuário e sugira uma tarefa `sensivel` para ela (nunca abra sozinho nem interrompa a atual); "não verificado" ou falha → siga sem bloquear e cite em uma linha.
 Se `T nova` recusar por já existir tarefa ativa, rode `T status`, mostre a tarefa ao usuário e pergunte se retoma ou abandona — nunca rode `abandonar` sem ok explícito do usuário.
 
 ## 2. Entender

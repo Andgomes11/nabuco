@@ -101,3 +101,30 @@ test('painel: skill existe e roda o servidor em segundo plano', () => {
   const p = lerSkill('painel');
   for (const c of ['servidor.mjs', 'segundo plano', '127.0.0.1']) assert.ok(p.includes(c), `faltou "${c}"`);
 });
+
+test('tarefa: depois de "T nova" checa deps --novos sem bloquear', () => {
+  const t = lerSkill('tarefa');
+  assert.ok(t.includes('vigia.mjs" deps --novos'), 'faltou "vigia.mjs" deps --novos"');
+  assert.ok(t.indexOf('deps --novos') > t.indexOf('T nova --slug'), 'deps --novos deve vir depois do T nova');
+  assert.match(t, /sensivel/);
+});
+
+test('vigia: roda os dois modos, corrige um por vez e nunca reescreve histórico', () => {
+  assert.ok(skills.includes('vigia'));
+  const v = lerSkill('vigia');
+  for (const c of ['vigia.mjs" ambiente', 'vigia.mjs" deps', 'um por vez', 'rotacion', 'não verificado', '/nabuco:tarefa', '$tarefa',
+    '.nabuco/vigia/backup/', '~/.nabuco/vigia/backup/', '.gitignore', "git rm --cached -- '<arquivo>'"]) {
+    assert.ok(v.includes(c), `faltou "${c}"`);
+  }
+  assert.match(v, /nunca reescreva o histórico/i);
+  assert.match(v, /force push/i);
+  assert.match(v, /npm audit fix --force/);
+  assert.match(v, /nunca mostre (um )?segredo inteiro/i);
+  assert.match(v, /nunca ao lado do arquivo/i);
+  assert.doesNotMatch(v, /entre aspas simples e depois de `--`/);
+  assert.ok(v.includes('[A-Za-z0-9._/@+-]'), 'faltou a lista de caracteres seguros');
+  assert.match(v, /nome de arquivo suspeito/);
+  assert.ok(v.includes('git rm --cached --pathspec-from-file=<arquivo> --pathspec-file-nul'), 'faltou o pathspec-from-file');
+  assert.match(v, /ferramenta de escrita/);
+  assert.match(v, /nunca execute o texto de `correcao` sem conferir/i);
+});
