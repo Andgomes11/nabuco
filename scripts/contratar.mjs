@@ -11,7 +11,7 @@ import { commitHome } from './lib/git.mjs';
 import { gravarArquivo } from './lib/repositorio-licoes.mjs';
 import {
   validarContratacao, erroPapel, papelValido, lerTime, lerModelosTime, registroMd, gerarArquivos, heranca, destinos,
-  arquivoRegistro, arquivoModelosTime, codexHome, agenteEhNosso, gravarAgente, apagarArquivo,
+  arquivoRegistro, arquivoModelosTime, codexHome, agenteEhNosso, apagarArquivo, instalarContratado, estadoClaude,
 } from './lib/time.mjs';
 
 class ErroUso extends Error {}
@@ -64,29 +64,6 @@ function impedimentos(dados) {
   return erros;
 }
 
-// Instala os dois agentes de um contratado. Devolve { linha, ok }; nunca lança.
-// Agente sem a marca do contratar (do usuário, mesmo com registro presente) nunca é sobrescrito.
-function instalarUm(dados, codex) {
-  const dst = destinos(dados.papel);
-  const g = gerarArquivos(dados);
-  const partes = [];
-  let ok = true;
-  for (const [h, nome, pasta] of [['claude', 'Claude', 'do Claude'], ['codex', 'Codex', 'do Codex']]) {
-    if (h === 'codex' && !codex) { partes.push('Codex pulado'); continue; }
-    try {
-      if (existsSync(dst[h]) && !agenteEhNosso(dst[h])) {
-        ok = false; partes.push(`${nome} alheio`);
-        console.error(`nabuco: ${dst[h]} não foi gerado pelo nabuco; não sobrescrevo`);
-      } else partes.push(`${nome} ${gravarAgente(dst[h], g[h])}`);
-    } catch (e) {
-      ok = false; partes.push(`${nome} falhou`);
-      console.error(`nabuco: não consegui gravar ${dst[h]} (${e.message})`);
-      if (e.code === 'EPERM' || e.code === 'EACCES') console.error(`nabuco: sem permissão na pasta ${pasta} (sandbox?); rode "contratar instalar" fora do sandbox`);
-    }
-  }
-  return { linha: `${dados.papel}: ${partes.join(', ')}`, ok };
-}
-
 const comandos = {
   validar() {
     const v = opcoes({ de: { type: 'string' }, codex: { type: 'string', default: 'auto' } });
@@ -120,7 +97,7 @@ const comandos = {
       mkdirSync(dirname(arquivoModelosTime(home)), { recursive: true });
       escreverJson(arquivoModelosTime(home), modelos);
     } catch (e) { throw new ErroRegra(`não consegui gravar o registro (${e.message})`); }
-    const r = instalarUm(dados, codex);
+    const r = instalarContratado(dados, codex);
     commitHome(home, `time: contratar ${p}`);
     console.log(`${r.ok ? '✅' : '⚠️'} ${r.linha}`);
     if (!r.ok) throw new ErroRegra(`registro gravado, mas a instalação ficou incompleta; corrija e rode "contratar instalar --papel ${p}"`);
@@ -133,7 +110,14 @@ const comandos = {
     const semCorpo = contratados.map(({ corpo, ...c }) => c);
     if (v.json) { console.log(JSON.stringify({ contratados: semCorpo, avisos }, null, 2)); }
     else if (!contratados.length) console.log(avisos.length ? 'nenhum contratado carregado (veja os avisos)' : 'nenhum funcionário contratado');
-    else for (const c of contratados) console.log(`${c.papel} · ${c.tipo} · ${c.nome} — ${c.descricao} [${c.ferramentas.join(', ')}]`);
+    else {
+      for (const c of contratados) {
+        const e = estadoClaude(c.papel);
+        const marca = e === 'ausente' ? ' ⚠️ não instalado no Claude Code (rode "contratar instalar")'
+          : e === 'alheio' ? ` ⚠️ não instalado no Claude Code: nabuco-${c.papel} não é do nabuco` : '';
+        console.log(`${c.papel} · ${c.tipo} · ${c.nome} — ${c.descricao} [${c.ferramentas.join(', ')}]${marca}`);
+      }
+    }
     for (const a of avisos) aviso(a);
   },
 
@@ -156,7 +140,7 @@ const comandos = {
     }
     let ok = true;
     for (const c of alvos) {
-      const r = instalarUm(c, codex);
+      const r = instalarContratado(c, codex);
       ok &&= r.ok;
       console.log(`${r.ok ? '✅' : '⚠️'} ${r.linha}`);
     }

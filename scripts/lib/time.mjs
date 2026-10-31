@@ -239,3 +239,73 @@ export function apagarArquivo(arq) {
   rmSync(arq);
   return true;
 }
+
+// Agente do Claude Code de um contratado: 'instalado', 'ausente' ou 'alheio' (sem a marca do contratar).
+export function estadoClaude(p) {
+  const arq = destinos(p).claude;
+  try {
+    if (!existsSync(arq)) return 'ausente';
+    return agenteEhNosso(arq) ? 'instalado' : 'alheio';
+  } catch { return 'ausente'; }
+}
+
+// Instala os dois agentes de um contratado. Devolve { linha, ok }; nunca lança (problemas vão para `avisar`).
+// Agente sem a marca do contratar (do usuário, mesmo com registro presente) nunca é sobrescrito.
+export function instalarContratado(dados, codex, avisar = m => console.error(m)) {
+  const dst = destinos(dados.papel);
+  const g = gerarArquivos(dados);
+  const partes = [];
+  let ok = true;
+  for (const [h, nome, pasta] of [['claude', 'Claude', 'do Claude'], ['codex', 'Codex', 'do Codex']]) {
+    if (h === 'codex' && !codex) { partes.push('Codex pulado'); continue; }
+    try {
+      if (existsSync(dst[h]) && !agenteEhNosso(dst[h])) {
+        ok = false; partes.push(`${nome} alheio`);
+        avisar(`nabuco: ${dst[h]} não foi gerado pelo nabuco; não sobrescrevo`);
+      } else partes.push(`${nome} ${gravarAgente(dst[h], g[h])}`);
+    } catch (e) {
+      ok = false; partes.push(`${nome} falhou`);
+      avisar(`nabuco: não consegui gravar ${dst[h]} (${e.message})`);
+      if (e.code === 'EPERM' || e.code === 'EACCES') avisar(`nabuco: sem permissão na pasta ${pasta} (sandbox?); rode "contratar instalar" fora do sandbox`);
+    }
+  }
+  return { linha: `${dados.papel}: ${partes.join(', ')}`, ok };
+}
+
+// Deixa os agentes desta máquina iguais ao registro (usado depois de trazer o cérebro de outra máquina):
+// instala/atualiza os contratados válidos e apaga os `nabuco-<p>` com a marca do contratar cujo registro
+// (time/papeis/<p>.md) não existe mais. Agente sem a marca, embutido ou com registro presente (mesmo
+// inválido) nunca é tocado. Nunca lança. Devolve { ok, linhas, avisos }.
+export function reconciliarTime(home = nabucoHome(), { codex = existsSync(codexHome()) } = {}) {
+  const linhas = [], avisos = [];
+  let ok = true;
+  try {
+    const t = lerTime(home);
+    avisos.push(...t.avisos);
+    for (const c of t.contratados) {
+      const r = instalarContratado(c, codex, m => avisos.push(m));
+      ok &&= r.ok;
+      linhas.push(r.linha);
+    }
+    for (const [pasta, ext] of [[join(claudeHome(), 'agents'), '.md'], [join(codexHome(), 'agents'), '.toml']]) {
+      let nomes = [];
+      try { nomes = existsSync(pasta) ? readdirSync(pasta) : []; }
+      catch (e) { ok = false; avisos.push(`não consegui ler ${pasta} (${e.message})`); continue; }
+      for (const n of nomes) {
+        if (!n.startsWith('nabuco-') || !n.endsWith(ext)) continue;
+        const p = n.slice('nabuco-'.length, -ext.length);
+        if (erroPapel(p) || existsSync(arquivoRegistro(home, p))) continue;
+        const arq = join(pasta, n);
+        try {
+          if (!agenteEhNosso(arq)) continue;
+          apagarArquivo(arq);
+          linhas.push(`${p}: ${n} removido (não está mais no registro)`);
+        } catch (e) { ok = false; avisos.push(`não consegui apagar ${arq} (${e.message})`); }
+      }
+    }
+  } catch (e) {
+    ok = false;
+    avisos.push(`falha ao reconciliar os contratados (${e.message})`);
+  }
+  return { ok, linhas, avisos };
+}

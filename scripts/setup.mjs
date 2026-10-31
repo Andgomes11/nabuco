@@ -9,6 +9,7 @@ import { nabucoHome } from './lib/caminhos.mjs';
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { construir, diferencas } from './lib/build.mjs';
 import { lerTime } from './lib/time.mjs';
+import { garantirCerebroGit } from './sincronizar.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECADORES = ['arquiteto', 'revisor', 'seguranca', 'tester'];
@@ -104,8 +105,8 @@ if (v['status-line'] || config.status_line) {
 }
 
 // 7. sincronização do cérebro com um repositório git remoto (privado): casos, lições e histórico seguem
-// para todas as máquinas. O que é da máquina (limite do plano, bin/, config) fica fora.
-const IGNORAR = ['limite.jsonl', 'bin/', 'config.json', 'sync.log', '.sync.lock', '*.tmp'];
+// para todas as máquinas. O que é da máquina (limite do plano, bin/, config, relatórios) fica fora
+// (.gitignore e .gitattributes: IGNORAR e ATRIBUTOS em sincronizar.mjs, que os garante a cada sincronização).
 if (v['cerebro-remoto'] !== undefined) {
   const url = v['cerebro-remoto'].trim();
   const git = args => spawnSync('git', ['-C', home, ...args], { encoding: 'utf8', timeout: 120000 });
@@ -132,10 +133,7 @@ if (v['cerebro-remoto'] !== undefined) {
     if (local.trim()) appendFileSync(arqHist, local.endsWith('\n') ? local : local + '\n');
     ok(`cérebro trazido de ${url}`);
   }
-  writeFileSync(join(home, '.gitignore'), IGNORAR.join('\n') + '\n');
-  // o histórico só recebe linhas no fim: o merge "union" junta as duas máquinas sem conflito
-  writeFileSync(join(home, '.gitattributes'), 'historico.jsonl merge=union\n');
-  git(['rm', '-r', '-q', '--cached', '--ignore-unmatch', ...IGNORAR.filter(x => !x.includes('*'))]);
+  garantirCerebroGit(home, git);
   git(['add', '-A']);
   if (git(['diff', '--cached', '--quiet']).status === 1) git(['commit', '-q', '-m', 'sync: configura sincronização']);
   if (remotoTem && temCommit()) {

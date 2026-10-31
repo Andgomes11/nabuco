@@ -339,6 +339,18 @@ test('listar: vazio, texto e --json (sem corpo)', () => {
   assert.deepEqual(Object.keys(j.contratados[0]).sort(), ['claude', 'codex', 'descricao', 'ferramentas', 'nome', 'papel', 'tipo']);
 });
 
+test('listar: marca quem não está instalado no Claude Code (ausente ou agente alheio)', () => {
+  assert.equal(contratar().status, 0);
+  assert.doesNotMatch(run(['listar']).stdout, /não instalado/);
+  rmSync(agenteClaude('analista'));
+  let r = run(['listar']);
+  assert.match(r.stdout, /analista · .*não instalado no Claude Code.*contratar instalar/);
+  writeFileSync(agenteClaude('analista'), '---\nname: nabuco-analista\n---\nmeu\n');
+  r = run(['listar']);
+  assert.match(r.stdout, /analista · .*não instalado no Claude Code.*não é do nabuco/);
+  assert.equal(r.status, 0);
+});
+
 // ---------- instalar ----------
 
 test('instalar: reinstala a partir do registro, atualiza edições e instala no Codex quando pedido', () => {

@@ -5,13 +5,17 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { registroMd, validarContratacao, agenteEhNosso } from '../scripts/lib/time.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 let base, remoto;
 const GIT_ENV = { GIT_AUTHOR_NAME: 'T', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 'T', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null' };
-const maquina = nome => ({ ...process.env, ...GIT_ENV, NABUCO_HOME: join(base, nome), CODEX_HOME: join(base, `${nome}-codex`), CLAUDE_CONFIG_DIR: join(base, `${nome}-claude`), NABUCO_HARNESS: 'teste' });
+// core.autocrlf=true (padrão do Git for Windows) forçado pelo ambiente, em qualquer sistema
+const AUTOCRLF = { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.autocrlf', GIT_CONFIG_VALUE_0: 'true' };
+const maquina = (nome, extra = {}) => ({ ...process.env, ...GIT_ENV, NABUCO_HOME: join(base, nome), CODEX_HOME: join(base, `${nome}-codex`), CLAUDE_CONFIG_DIR: join(base, `${nome}-claude`), NABUCO_HARNESS: 'teste', ...extra });
 const run = (env, script, args = []) => spawnSync(process.execPath, [join(RAIZ, 'scripts', script), ...args], { cwd: base, encoding: 'utf8', env });
 const git = (dir, ...args) => spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8', env: { ...process.env, ...GIT_ENV } });
+const gitCom = (env, dir, ...args) => spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8', env });
 const linhas = arq => readFileSync(arq, 'utf8').trim().split('\n');
 
 beforeEach(() => {
@@ -77,4 +81,120 @@ test('remoto inacessível: setup avisa e sai com erro, sem marcar a sincronizaç
   assert.equal(r.status, 1);
   assert.match(r.stderr, /não consegui acessar/);
   assert.notEqual(JSON.parse(readFileSync(join(A.NABUCO_HOME, 'config.json'), 'utf8')).sincronizar, true);
+});
+
+// ---------- fim de linha (Windows) e o que nunca sobe ----------
+
+test('core.autocrlf=true: a máquina nova traz o cérebro sem CRLF', () => {
+  const A = maquina('a', AUTOCRLF), B = maquina('b', AUTOCRLF);
+  assert.equal(run(A, 'setup.mjs').status, 0);
+  mkdirSync(join(A.NABUCO_HOME, 'casos', 'dev'), { recursive: true });
+  writeFileSync(join(A.NABUCO_HOME, 'casos', 'dev', 'c1.md'), 'sintoma: x\ncausa: y\n');
+  writeFileSync(join(A.NABUCO_HOME, 'historico.jsonl'), '{"tipo":"a1"}\n');
+  assert.equal(run(A, 'setup.mjs', ['--cerebro-remoto', remoto]).status, 0);
+  assert.deepEqual(linhas(join(A.NABUCO_HOME, '.gitattributes')), ['* -text', 'historico.jsonl merge=union']);
+  const rb = run(B, 'setup.mjs', ['--cerebro-remoto', remoto]);
+  assert.equal(rb.status, 0, rb.stderr + rb.stdout);
+  for (const n of ['historico.jsonl', 'casos/dev/c1.md', '.gitignore', '.gitattributes']) {
+    assert.ok(!readFileSync(join(B.NABUCO_HOME, n), 'utf8').includes('\r'), `${n} veio com CRLF`);
+  }
+});
+
+test('cérebro configurado no formato antigo: sincronizar corrige .gitattributes e CRLF e tira relatorios/ do remoto', () => {
+  const A = maquina('a', AUTOCRLF);
+  const h = A.NABUCO_HOME;
+  assert.equal(run(A, 'setup.mjs').status, 0);
+  mkdirSync(join(h, 'casos', 'dev'), { recursive: true });
+  writeFileSync(join(h, 'casos', 'dev', 'c1.md'), 'sintoma: x\ncausa: y\n');
+  assert.equal(run(A, 'setup.mjs', ['--cerebro-remoto', remoto]).status, 0);
+  // como ficava um cérebro configurado antes da correção: sem "* -text", sem relatorios/ no .gitignore,
+  // relatório versionado e checkout com CRLF (autocrlf=true)
+  writeFileSync(join(h, '.gitattributes'), 'historico.jsonl merge=union\n');
+  writeFileSync(join(h, '.gitignore'), readFileSync(join(h, '.gitignore'), 'utf8').replace('relatorios/\n', ''));
+  mkdirSync(join(h, 'relatorios'), { recursive: true });
+  writeFileSync(join(h, 'relatorios', 'r.md'), '# relatório\n');
+  gitCom(A, h, 'add', '-A'); gitCom(A, h, 'commit', '-q', '-m', 'formato antigo'); gitCom(A, h, 'push', '-q', 'origin', 'main');
+  assert.ok(git(remoto, 'ls-tree', '-r', '--name-only', 'main').stdout.includes('relatorios/r.md'));
+  writeFileSync(join(h, 'casos', 'dev', 'c1.md'), 'sintoma: x\r\ncausa: y\r\n');
+
+  const s = run(A, 'sincronizar.mjs');
+  assert.equal(s.status, 0, s.stderr);
+  assert.deepEqual(linhas(join(h, '.gitattributes')).sort(), ['* -text', 'historico.jsonl merge=union']);
+  assert.ok(linhas(join(h, '.gitignore')).includes('relatorios/'));
+  assert.ok(!git(remoto, 'ls-tree', '-r', '--name-only', 'main').stdout.includes('relatorios/'), 'relatório não fica no remoto');
+  assert.ok(existsSync(join(h, 'relatorios', 'r.md')), 'o relatório local continua no disco');
+  assert.equal(git(remoto, 'show', 'main:casos/dev/c1.md').stdout, 'sintoma: x\ncausa: y\n');
+  assert.equal(readFileSync(join(h, 'casos', 'dev', 'c1.md'), 'utf8'), 'sintoma: x\ncausa: y\n');
+  assert.equal(gitCom(A, h, 'status', '--porcelain').stdout, '');
+});
+
+// ---------- contratados entre máquinas ----------
+
+const CORPO = ['# Analista — time nabuco', '', 'Lê dados.', '', '## Entrega', '- **lições usadas:** ids', ''].join('\n');
+function registrar(home, papel) {
+  const { dados, erros } = validarContratacao({
+    papel, nome: 'Analista', tipo: 'checador', descricao: 'Analisa dados.', ferramentas: ['Read'], corpo: CORPO,
+    claude: { model: 'sonnet', effort: 'medium' }, codex: { model: null, effort: 'medium' },
+  });
+  assert.deepEqual(erros, []);
+  mkdirSync(join(home, 'time', 'papeis'), { recursive: true });
+  writeFileSync(join(home, 'time', 'papeis', `${papel}.md`), registroMd(dados));
+  writeFileSync(join(home, 'time', 'modelos.json'), JSON.stringify({ claude: { [papel]: dados.claude }, codex: { [papel]: dados.codex } }));
+}
+function duasMaquinas() {
+  const A = maquina('a'), B = maquina('b');
+  for (const m of [A, B]) {
+    assert.equal(run(m, 'setup.mjs').status, 0);
+    const r = run(m, 'setup.mjs', ['--cerebro-remoto', remoto]);
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+  }
+  return [A, B];
+}
+function sincronizarOk(m) {
+  const s = run(m, 'sincronizar.mjs');
+  assert.equal(s.status, 0, s.stderr);
+  return s;
+}
+
+test('contratado registrado em outra máquina é instalado (Claude e Codex) depois do pull; removido lá, sai daqui', () => {
+  const [A, B] = duasMaquinas();
+  const agB = join(B.CLAUDE_CONFIG_DIR, 'agents'), cxB = join(B.CODEX_HOME, 'agents');
+  mkdirSync(agB, { recursive: true });
+  mkdirSync(B.CODEX_HOME, { recursive: true });
+  const alheio = '---\nname: nabuco-outro\n---\nmeu\n', local = '---\nname: nabuco-revisor\n---\nlocal\n';
+  writeFileSync(join(agB, 'nabuco-outro.md'), alheio); // do usuário, sem a marca
+  writeFileSync(join(agB, 'nabuco-revisor.md'), local); // checador local do setup
+
+  registrar(A.NABUCO_HOME, 'analista');
+  sincronizarOk(A);
+  sincronizarOk(B);
+  assert.ok(existsSync(join(agB, 'nabuco-analista.md')) && agenteEhNosso(join(agB, 'nabuco-analista.md')));
+  assert.ok(existsSync(join(cxB, 'nabuco-analista.toml')) && agenteEhNosso(join(cxB, 'nabuco-analista.toml')));
+  assert.match(readFileSync(join(B.NABUCO_HOME, 'sync.log'), 'utf8'), /analista/);
+
+  // pull sem mudança em time/: não reconcilia (o agente apagado à mão continua apagado)
+  rmSync(join(cxB, 'nabuco-analista.toml'));
+  sincronizarOk(B);
+  assert.ok(!existsSync(join(cxB, 'nabuco-analista.toml')));
+
+  rmSync(join(A.NABUCO_HOME, 'time', 'papeis', 'analista.md'));
+  sincronizarOk(A);
+  sincronizarOk(B);
+  assert.ok(!existsSync(join(agB, 'nabuco-analista.md')), 'o agente do contratado removido sai');
+  assert.equal(readFileSync(join(agB, 'nabuco-outro.md'), 'utf8'), alheio);
+  assert.equal(readFileSync(join(agB, 'nabuco-revisor.md'), 'utf8'), local);
+});
+
+test('falha ao instalar o contratado não quebra a sincronização: fica registrada no sync.log', () => {
+  const [A, B] = duasMaquinas();
+  mkdirSync(B.CLAUDE_CONFIG_DIR, { recursive: true });
+  writeFileSync(join(B.CLAUDE_CONFIG_DIR, 'agents'), 'não é pasta'); // gravar o agente falha
+  registrar(A.NABUCO_HOME, 'analista');
+  sincronizarOk(A);
+  const s = sincronizarOk(B);
+  assert.match(s.stdout, /cérebro sincronizado/);
+  assert.ok(existsSync(join(B.NABUCO_HOME, 'time', 'papeis', 'analista.md')), 'o registro chegou');
+  const log = readFileSync(join(B.NABUCO_HOME, 'sync.log'), 'utf8');
+  assert.match(log, /"ok":true/);
+  assert.match(log, /"contratados":\{"ok":false/);
 });

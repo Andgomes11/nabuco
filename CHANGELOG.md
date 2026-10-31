@@ -13,6 +13,11 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 - Relatório do time (`/nabuco:relatorio` no Claude Code, `$relatorio` no Codex): Markdown do que o time fez num período (`--dias`, `--desde`/`--ate`, `--desde-release`), no projeto atual ou em todos, com resumo, tarefas, checadores, escapes, cérebro, funcionários e qualidade dos dados; `--json` e `--gravar` (`.nabuco/relatorios/`). Só lê e nunca envia.
 - Consumo de tokens: o hook `SubagentStop` soma o `usage` do transcript de cada funcionário do nabuco no Claude Code (entrada, saída, cache leitura/escrita) em `agente_fim`; Codex e eventos antigos ficam como "não medido".
 
+### Corrigido
+- Sincronização × contratados: quando o cérebro traz mudanças em `time/` de outra máquina, os contratados registrados são instalados/atualizados e os agentes `nabuco-<papel>` gerados pelo contratar cujo papel saiu do registro são removidos (agente sem a marca nunca é tocado; falha só vai para o `sync.log`). `contratar listar` marca quem não está instalado no Claude Code e o Gerente não delega a ele.
+- Relatórios nunca sobem para o remoto do cérebro: `relatorios/` entra no `.gitignore` no setup e, em cérebros já sincronizados, a sincronização o acrescenta e tira do índice.
+- Fim de linha no Windows: com `core.autocrlf=true` (padrão do Git for Windows) a máquina nova trazia o cérebro com CRLF. O `.gitattributes` do cérebro passa a ser `* -text` + `historico.jsonl merge=union` (setup e sincronização) e arquivos já em CRLF voltam a LF.
+
 ## 0.7.1 — 2026-10-19
 
 ### Corrigido

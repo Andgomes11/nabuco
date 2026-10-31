@@ -171,6 +171,7 @@ test('tarefa: reconhece contratados (listar, nabuco-<p>, checador contratado em 
   assert.match(t, /nabuco-<p>/);
   assert.match(t, /checador contratado/i);
   assert.match(t, /checador contratado[^\n]*paralelo/i);
+  assert.match(t, /não delegue a contratado não instalado[^\n]*contratar\.mjs" instalar/i);
 });
 
 test('relatorio: roda o script, mostra, oferece --gravar e nunca envia sem pedido', () => {
