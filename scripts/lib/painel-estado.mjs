@@ -60,8 +60,38 @@ function linhaDoTempo(evs) {
     .map(e => ({ ts: typeof e.ts === 'string' ? e.ts : null, tipo: e.tipo, papel: typeof e.papel === 'string' ? e.papel : null, dados: enxuto(e.dados) }));
 }
 
+// fila do projeto (.nabuco/fila.json): itens enxutos, com pedido cortado. Acima de MAX_FILA, os itens
+// pendentes e em andamento nunca somem; dos encerrados ficam os mais recentes (`ocultos` conta o resto).
+export const MAX_FILA = 50;
+const ATIVOS_FILA = new Set(['pendente', 'em_andamento']);
+const resumirParada = p => (p && typeof p === 'object' && typeof p.motivo === 'string'
+  ? { motivo: p.motivo.slice(0, 200), desde: typeof p.desde === 'string' ? p.desde : null, item: typeof p.item === 'string' ? p.item : null }
+  : null);
+function resumirFila(fila) {
+  if (!fila || typeof fila !== 'object') return null;
+  const itens = lista(fila.itens).filter(i => typeof i.id === 'string' && typeof i.status === 'string');
+  const aviso = typeof fila.aviso === 'string' && fila.aviso ? fila.aviso : null;
+  if (!itens.length && !aviso) return null;
+  const ativos = itens.filter(i => ATIVOS_FILA.has(i.status)).slice(0, MAX_FILA);
+  const encerrados = itens.filter(i => !ATIVOS_FILA.has(i.status));
+  const mostrar = new Set([...ativos, ...encerrados.slice(Math.max(0, encerrados.length - (MAX_FILA - ativos.length)))]);
+  return {
+    pendentes: itens.filter(i => i.status === 'pendente').length,
+    commit_por_item: fila.commit_por_item === true,
+    aviso,
+    parada: resumirParada(fila.parada),
+    ocultos: itens.length - mostrar.size,
+    itens: itens.filter(i => mostrar.has(i)).map(i => ({
+      id: i.id,
+      pedido: typeof i.pedido === 'string' ? i.pedido.slice(0, 200) : '',
+      status: i.status,
+      tarefa: typeof i.tarefa === 'string' ? i.tarefa : null,
+    })),
+  };
+}
+
 // `funcionarios` (gerente + papéis) e `escritores`: padrão nos embutidos; o servidor inclui os contratados.
-export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora, funcionarios: equipe = FUNCIONARIOS, escritores }) {
+export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora, funcionarios: equipe = FUNCIONARIOS, escritores, fila = null }) {
   const evs = lista(eventos);
   const evsTarefa = lista(tarefa?.eventos);
   const limite30 = agora - EXPIRA;
@@ -125,5 +155,5 @@ export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite
   // versao usa eventos.length cru de propósito: são índices no arquivo de histórico
   // limite do plano: consumo "da tarefa" é aproximado (o limite é da conta, inclui outras sessões)
   const plano = resumirLimite(limite, { agora, inicioTarefa: tarefa?.estado?.criada });
-  return { versao: Array.isArray(eventos) ? eventos.length : 0, projeto, tarefa: t, funcionarios, limite: plano };
+  return { versao: Array.isArray(eventos) ? eventos.length : 0, projeto, tarefa: t, funcionarios, limite: plano, fila: resumirFila(fila) };
 }

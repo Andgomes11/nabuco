@@ -416,3 +416,31 @@ test('/api/fontes/<papel>/licao/<id>: lição do escopo projeto só conta votos 
   appendFileSync(join(home, 'historico.jsonl'), evs.map(e => JSON.stringify(e)).join('\n') + '\n');
   assert.deepEqual(json(await pedir('/api/fontes/dev/licao/dev-0003?v=2')).eventos, [evs[0]]);
 });
+
+test('/api/estado: fila do projeto (fila.json); ilegível mantém a última leitura boa com aviso', async () => {
+  assert.equal(json(await pedir('/api/estado')).fila, null);
+  mkdirSync(join(proj, '.nabuco'), { recursive: true });
+  const arq = join(proj, '.nabuco', 'fila.json');
+  writeFileSync(arq, JSON.stringify({ commit_por_item: false, itens: [{ id: 'f1', pedido: 'login', criado: 'x', status: 'pendente', tarefa: null }] }));
+  let e = json(await pedir('/api/estado'));
+  assert.equal(e.fila.pendentes, 1);
+  assert.equal(e.fila.itens[0].pedido, 'login');
+  assert.equal(e.fila.aviso, null);
+  writeFileSync(arq, '{quebrado');
+  e = json(await pedir('/api/estado'));
+  assert.equal(e.fila.itens[0].pedido, 'login');
+  assert.match(e.fila.aviso, /fila\.json ilegível/);
+  unlinkSync(arq);
+  assert.equal(json(await pedir('/api/estado')).fila, null);
+});
+
+test('SSE: fila.json criado ou alterado chega ao painel (só por polling)', async () => {
+  const s2 = await iniciar({ porta: 0, raiz: RAIZ, projeto: proj, home, observar: false });
+  try {
+    const sse = await abrirSSE(s2);
+    await sse.esperar(e => e.fila === null, 2000);
+    mkdirSync(join(proj, '.nabuco'), { recursive: true });
+    writeFileSync(join(proj, '.nabuco', 'fila.json'), JSON.stringify({ itens: [{ id: 'f1', pedido: 'a', status: 'pendente', tarefa: null }] }));
+    await sse.esperar(e => e.fila?.pendentes === 1, 3000);
+  } finally { await s2.fechar(); }
+});

@@ -375,6 +375,37 @@ function renderizarLinha(e) {
   }
 }
 
+// ---------- fila ----------
+const ROTULO_FILA = { em_andamento: 'em andamento', feito: 'feito', abandonado: 'abandonado' };
+let filaDesenhada = null; // JSON da última fila desenhada: só redesenha quando muda
+function renderizarFila(f) {
+  const js = JSON.stringify(f ?? null);
+  if (js === filaDesenhada) return;
+  filaDesenhada = js;
+  const caixa = $('fila');
+  caixa.hidden = !f;
+  if (!f) return;
+  const partes = [`${f.pendentes} pendente${f.pendentes === 1 ? '' : 's'}`];
+  if (f.parada) partes.push(`parada: ${f.parada.motivo}`);
+  if (f.commit_por_item) partes.push('commit por item');
+  if (f.ocultos) partes.push(`+${f.ocultos} antigos`);
+  $('fila-resumo').textContent = `· ${partes.join(' · ')}`;
+  const aviso = $('fila-aviso');
+  aviso.textContent = f.aviso ?? '';
+  aviso.hidden = !f.aviso;
+  const lista = $('fila-itens');
+  lista.replaceChildren();
+  for (const it of Array.isArray(f.itens) ? f.itens : []) {
+    const li = el('li', 'fila-item');
+    li.dataset.status = it.status;
+    const texto = el('span', 'fila-texto', it.pedido);
+    if (ROTULO_FILA[it.status]) texto.append(el('span', 'fila-status', ROTULO_FILA[it.status]));
+    if (it.tarefa) li.title = `tarefa ${it.tarefa}`;
+    li.append(el('span', 'fila-id', it.id), texto);
+    lista.append(li);
+  }
+}
+
 // só a situação da conexão é anunciada; a contagem de eventos muda o tempo todo e fica fora da região viva
 function definirConexao(situacao, texto) {
   const c = $('conexao');
@@ -394,6 +425,7 @@ function aplicarEstado(e) {
   renderizarCabecalho(e);
   renderizarLimite(e.limite);
   renderizarLinha(e);
+  renderizarFila(e.fila);
   renderizarMonitores(e.funcionarios);
   if ($('conexao').dataset.estado === 'ao-vivo') definirConexao('ao-vivo', textoAoVivo());
   if (dossieAberto && versaoAnterior !== undefined && e.versao !== dossieAberto.versao) $('d-aviso').hidden = false;

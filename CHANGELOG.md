@@ -4,6 +4,12 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 
 ## Não lançado
 
+### Adicionado
+- Fila de pedidos (`/nabuco:fila` no Claude Code, `$fila` no Codex): o usuário enfileira vários pedidos (com triagem das dúvidas na hora) e o Gerente executa um por vez, cada um como tarefa normal, sem pular aprovação; item abandonado grava a fila como parada (`proximo` devolve a parada em vez do item e `nova --fila` recusa) até `retomar`, com ok do usuário; item que ficou em andamento sem tarefa ativa também conta como parada, e `retomar` o marca como abandonado. CLI `scripts/fila.mjs` (`add`, `listar`, `remover`, `mover`, `proximo`, `config --commit-por-item`, `retomar`) sobre `.nabuco/fila.json`; `fila.json` ilegível dá erro claro e nunca é sobrescrito.
+- `tarefa.mjs nova --fila <id>` marca o item em andamento (validado antes de criar a pasta); `concluir` e `abandonar` fecham o item; `status` mostra a fila.
+- Cada tarefa nova guarda `base` no `estado.json` (`git stash create` ou `HEAD`, sem mexer na árvore); os checadores recebem `git diff <base>`, isolando o diff da tarefa de mudanças não commitadas de antes. Guarda também `nao_rastreados` (lista do `git ls-files --others`), e `tarefa.mjs arquivos-novos [--json] [--tarefa <pasta>]` mostra os não rastreados criados na tarefa, os de antes alterados nela e a lista para o commit por item (rastreados alterados desde a `base` + não rastreados novos), também de tarefa já concluída; o `tarefa.mjs status` mostra só a contagem de `nao_rastreados`.
+- Fila no `/nabuco:status` e no painel (com a parada, quando houver); opção de commit por item, sempre gravada e válida só para a fila em curso; `/nabuco:tarefa` sem argumentos mostra o próximo item da fila e pergunta antes de começar; retrospectiva oferecida uma vez no fim da fila.
+
 ## 0.8.0 — 2026-10-31
 
 ### Adicionado

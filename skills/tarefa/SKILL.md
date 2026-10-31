@@ -11,7 +11,10 @@ Você é o **Gerente**. Coordena o time e garante evidência. **Você não edita
 `T` = `node "$NABUCO/scripts/tarefa.mjs"` · `E` = `node "$NABUCO/scripts/evento.mjs"` · `C` = `node "$NABUCO/scripts/cerebro.mjs"` — rode sempre a partir da raiz do projeto.
 
 ## 0. Retomar
-Sem descrição de tarefa: rode `T status`. Havendo tarefa ativa, leia `progresso.md` e continue do "Próximo passo" (se a fase for `aguardando_usuario`, refaça a pergunta). Sem tarefa ativa, peça a descrição.
+Sem descrição de tarefa: rode `T status`. Havendo tarefa ativa, leia `progresso.md` e continue do "Próximo passo" (se a fase for `aguardando_usuario`, refaça a pergunta). Sem tarefa ativa, rode `node "$NABUCO/scripts/fila.mjs" proximo`:
+- fila parada (`T abandonar` de um item a para; item que ficou em andamento sem tarefa ativa também, e `retomar` o marca abandonado): mostre o motivo e o item seguinte e pergunte se segue; só com o ok do usuário rode `node "$NABUCO/scripts/fila.mjs" retomar` e siga a skill `fila` (`$NABUCO/skills/fila/SKILL.md`).
+- item pendente: mostre o item e pergunte se começa por ele (só `/nabuco:fila` ou `$fila` segue direto); com o ok, siga a skill `fila` com ele.
+- fila vazia: peça a descrição.
 Se a fase for `aguardando_usuario` e não houver pergunta sua pendente no `progresso.md`, a tarefa foi liberada pelo gate (procure `gate_liberado` em `eventos.jsonl`): veja os critérios pendentes em `T status`, rode `T fase executando` e resolva-os, ou explique ao usuário o que falta.
 
 ## 1. Classificar
@@ -24,7 +27,7 @@ Antes, rode `C buscar --papel gerente --texto="<pedido>"` e aplique as lições 
 
 Tipo → escritor: `bug` → debugger · `ui` → designer · `infra` → devops · `docs` → docs · `feature`/`refactor` → dev · `estrutural` → consulte o arquiteto antes de planejar, depois dev.
 Rode também `node "$NABUCO/scripts/contratar.mjs" listar`: se a descrição de um escritor contratado cobrir a tarefa melhor que o padrão por tipo, use-o e registre a escolha no plano. Não delegue a contratado não instalado (o `listar` marca "não instalado no Claude Code"): rode `node "$NABUCO/scripts/contratar.mjs" instalar` antes e, se a marca continuar, use o padrão por tipo.
-Se o usuário forçar um tamanho, obedeça. Rode: `T nova --slug <curto> --tamanho <t> --tipo <tipo>` (imprime a pasta da tarefa).
+Se o usuário forçar um tamanho, obedeça. Rode: `T nova --slug <curto> --tamanho <t> --tipo <tipo>` (imprime a pasta da tarefa). Item da fila: acrescente `--fila <id>` (marca o item em andamento; `concluir`/`abandonar` o fecham).
 Depois, rode `node "$NABUCO/scripts/vigia.mjs" deps --novos`: vulnerabilidade **alta** nova → avise o usuário e sugira uma tarefa `sensivel` para ela (nunca abra sozinho nem interrompa a atual); "não verificado" ou falha → siga sem bloquear e cite em uma linha.
 Se `T nova` recusar por já existir tarefa ativa, rode `T status`, mostre a tarefa ao usuário e pergunte se retoma ou abandona — nunca rode `abandonar` sem ok explícito do usuário.
 
@@ -53,7 +56,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 ## 5. Checar — por risco
 - `trivial`: pule. `media`: revisor. `sensivel`: revisor, seguranca e tester **em paralelo**.
 - Checador contratado (da lista do §1) cuja descrição se aplique ao diff entra em paralelo com os padrões, como `nabuco-<p>`.
-- Rode `T fase checando`, um `T delegar --papel <checador> --passo="revisar o diff"` por checador, e anuncie `→ checando com <Revisor, Segurança, Tester>`; ao receber, `← <Papel>: <n achados ou nada a reportar>`. Entregue a cada checador só: o `git diff` da tarefa, o plano e os critérios — nada do histórico. Instrução fixa: "reporte só o que afeta corretude, segurança ou os critérios; sem nada relevante, responda 'nada a reportar'".
+- Rode `T fase checando`, um `T delegar --papel <checador> --passo="revisar o diff"` por checador, e anuncie `→ checando com <Revisor, Segurança, Tester>`; ao receber, `← <Papel>: <n achados ou nada a reportar>`. Entregue a cada checador só: o diff da tarefa, o plano e os critérios — nada do histórico. O diff é `git diff <base>`, com `base` do `estado.json` (`T status`): assim mudanças não commitadas de antes (ex.: itens anteriores da fila) ficam de fora; sem `base`, use o `git diff` de sempre. Arquivo não rastreado não aparece no diff: rode `T arquivos-novos` (mostra o comando do diff, os não rastreados criados nesta tarefa e os não rastreados que já existiam e mudaram nela) e entregue o conteúdo dos novos; não rastreado de antes alterado não tem diff possível — entregue o arquivo inteiro e avise o checador disso. Instrução fixa: "reporte só o que afeta corretude, segurança ou os critérios; sem nada relevante, responda 'nada a reportar'".
 - Claude Code: se `~/.nabuco/config.json` tiver `"checadores_locais": true`, use `nabuco-<papel>` em vez de `nabuco:<papel>`.
 - Codex: depois de cada checador, rode `git status --porcelain` — se um checador alterou arquivos, mostre ao usuário antes de seguir.
 - Registre cada achado: `E achado --papel <papel> --dados='{"severidade":"alta|media|baixa","resumo":"..."}'`.
@@ -68,6 +71,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 Resumo ao usuário: o que mudou, critérios com evidência, achados relevantes e decisões. Commit só se o usuário pedir.
 Vote também nas lições do Gerente (as do §1, não as do escritor) — um voto por lição por tarefa (`C voto --id <id> --util sim|nao`).
 Depois do resumo, ofereça a retrospectiva (`/nabuco:retro` no Claude Code, `$retro` no Codex). Em tarefa `trivial` sem falhas, só se o usuário quiser.
+Tarefa da fila (criada com `--fila`): commit ao concluir só se a fila tiver `commit_por_item` true (`T status` mostra), com os arquivos desta tarefa e só eles: depois do `T concluir`, rode `T arquivos-novos --tarefa <nome>` (nome = a pasta da tarefa em `.nabuco/tarefas/`) e faça `git add -- <arquivos>` só com a lista "para commit" (rastreados alterados desde a `base` + não rastreados novos) — nunca `git add -A` nem `git add .`. Lista não confiável (sem `base` ou sem os não rastreados de quando a tarefa nasceu) ou não rastreado de antes alterado nesta tarefa: mostre o que há e pergunte ao usuário quais arquivos entram antes de commitar. Mostre `node "$NABUCO/scripts/fila.mjs" listar` e siga para o próximo item pela skill `fila`; item abandonado ou falha para a fila e você pergunta ao usuário (abandonado grava a fila como parada: só siga com `fila.mjs retomar` depois do ok dele). A retro não é oferecida a cada item: ofereça uma vez, no fim da fila, listando as tarefas com falhas.
 
 ## Sempre
 - Antes de fazer qualquer pergunta ao usuário durante a execução: `T fase aguardando_usuario --motivo="<pergunta>"`; ao retomar: `T fase executando`.

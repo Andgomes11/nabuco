@@ -38,6 +38,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 |---|---|---|
 | Executar uma tarefa | `/nabuco:tarefa <descrição>` | `$tarefa <descrição>` |
 | Retomar a tarefa ativa | `/nabuco:tarefa` | `$tarefa` |
+| Enfileirar vários pedidos e executar um após o outro | `/nabuco:fila <pedidos>` | `$fila <pedidos>` |
 | Ver o time e a instalação | `/nabuco:status` | `$status` |
 | Retrospectiva da tarefa | `/nabuco:retro` | `$retro` |
 | Ver e cuidar das lições | `/nabuco:licoes` | `$licoes` |
@@ -48,6 +49,13 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Relatório do que o time fez num período | `/nabuco:relatorio` | `$relatorio` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
+
+### Fila
+
+`/nabuco:fila` (`$fila`) recebe vários pedidos de uma vez. O Gerente tira as dúvidas de cada um na hora (pedido ambíguo vira pergunta antes de entrar na fila), enfileira e executa um por vez, cada um como uma tarefa normal: classificação, plano, aprovações, checkpoints, checadores e gate. A fila **nunca pula aprovação**: tarefa `media`/`sensivel` para no plano como sempre; só `trivial` encadeia sozinha. Item abandonado ou com falha para a fila até você decidir: o abandono grava a fila como parada (`proximo` mostra o motivo em vez do item) e só `retomar`, com o seu ok, libera. Item que ficou em andamento sem tarefa ativa (o encerramento não chegou à fila) também conta como parada, e `retomar` o marca como abandonado. `/nabuco:tarefa` sem argumentos e sem tarefa ativa mostra o próximo item (ou a parada) e pergunta antes de começar; só `/nabuco:fila` segue direto.
+- Fica em `.nabuco/fila.json`; `node <plugin>/scripts/fila.mjs` tem `add --pedido="..."`, `listar`, `remover --id fN`, `mover --id fN --para N`, `proximo`, `config --commit-por-item sim|nao` e `retomar`.
+- Padrão: as mudanças acumulam sem commit. Cada tarefa guarda a `base` do git ao nascer (`git stash create` ou `HEAD`, sem mexer nos seus arquivos) e os checadores revisam só `git diff <base>`, o diff daquele item. Com `commit-por-item sim`, o Gerente faz um commit ao concluir cada item, só com os arquivos daquele item (`tarefa.mjs arquivos-novos --tarefa <pasta>` lista os rastreados alterados desde a `base` e os não rastreados novos; nunca `git add -A`; lista não confiável vira pergunta a você); a escolha vale só para a fila em curso (uma fila nova volta para "não"). Arquivos não rastreados ficam fora do `git stash create`: a tarefa também guarda a lista deles ao nascer e `tarefa.mjs arquivos-novos` mostra os criados nela e os de antes que ela alterou (estes vão inteiros para os checadores).
+- A fila aparece no `/nabuco:status` ("Fila: n pendentes · parada: … · próximo: …") e no painel; a retrospectiva é oferecida uma vez, no fim da fila.
 
 ## Cérebro
 

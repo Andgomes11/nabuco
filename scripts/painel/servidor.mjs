@@ -16,6 +16,7 @@ import { montarDossie } from '../lib/dossie.mjs';
 import { blocosDe } from '../lib/repositorio-licoes.mjs';
 import { PAPEIS } from '../lib/constantes.mjs';
 import { contratados, papeis, escritores } from '../lib/time.mjs';
+import { arquivoFila, lerFila } from '../lib/fila.mjs';
 
 const RAIZ_PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PUBLICO = join(dirname(fileURLToPath(import.meta.url)), 'publico');
@@ -115,6 +116,21 @@ function leitorTarefa(projeto) {
   };
 }
 
+export const AVISO_FILA = 'fila.json ilegível — mostrando a última leitura boa';
+const AVISO_FILA_SEM_BOA = 'fila.json ilegível';
+
+// fila do projeto para o montarEstado: sem arquivo = null; ilegível = última leitura boa com `aviso`
+// (ou lista vazia com aviso, se nunca houve leitura boa), para a corrupção não passar despercebida.
+function leitorFila(projeto) {
+  let boa = null;
+  return () => {
+    if (!existsSync(arquivoFila(projeto))) { boa = null; return null; }
+    try { boa = lerFila(projeto); return boa; } catch {
+      return boa ? { ...boa, aviso: AVISO_FILA } : { itens: [], aviso: AVISO_FILA_SEM_BOA };
+    }
+  };
+}
+
 function ativaDir(projeto) {
   try { return lerAtiva(projeto)?.dir ?? null; } catch { return null; }
 }
@@ -159,10 +175,11 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   const lerHistorico = leitorHistorico(home); // cache por (mtime, tamanho); lê só o que foi acrescentado
   const arqLimite = join(home, 'limite.jsonl');
   const lerLimite = leitorLimite(arqLimite);
+  const lerFilaProjeto = leitorFila(projeto);
 
   const estadoAtual = () => montarEstado({
     eventos: lerHistorico(), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, limite: lerLimite(), agora: Date.now(),
-    funcionarios, escritores: listas.escritores,
+    funcionarios, escritores: listas.escritores, fila: lerFilaProjeto(),
   });
 
   let portaReal = 0;
@@ -324,7 +341,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
   const assinatura = () => {
     const dir = ativaDir(projeto);
-    const arqs = [arqHistorico, arqLimite, join(dirProjeto(projeto), 'ativa')];
+    const arqs = [arqHistorico, arqLimite, join(dirProjeto(projeto), 'ativa'), arquivoFila(projeto)];
     if (dir) arqs.push(join(dir, 'estado.json'), join(dir, 'criterios.json'), join(dir, 'eventos.jsonl'));
     return { sig: arqs.map(marca).join('|') + `|${dir}`, dir };
   };
@@ -332,7 +349,8 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   let semMudanca = 0;
   function verificar() {
     const { sig, dir } = assinatura();
-    if (usarWatch) observar([home, dir].filter(Boolean));
+    // .nabuco do projeto: fila.json e ativa mudam ali
+    if (usarWatch) observar([home, dirProjeto(projeto), dir].filter(Boolean));
     if (sig !== ultimaAssinatura) { ultimaAssinatura = sig; semMudanca = 0; agendar(); }
     else if (++semMudanca >= RECALCULO) { semMudanca = 0; agendar(); }
   }

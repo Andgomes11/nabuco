@@ -9,6 +9,7 @@ import { construir, diferencas } from './lib/build.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { detectarHarness } from './lib/eventos.mjs';
 import { lerTime, destinos, gerarArquivos, agenteEhNosso } from './lib/time.mjs';
+import { arquivoFila, lerFila, resumoFila } from './lib/fila.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const codexHome = () => process.env.CODEX_HOME || join(homedir(), '.codex');
@@ -77,13 +78,30 @@ if (time.contratados.length) {
 
 const projeto = acharProjeto(process.cwd());
 const ativa = lerAtiva(projeto);
-if (!ativa) { console.log('\nNenhuma tarefa ativa neste projeto.'); process.exit(0); }
-try {
-  const estado = lerJson(join(ativa.dir, 'estado.json'));
-  const crit = lerJson(join(ativa.dir, 'criterios.json'));
-  const lista = Array.isArray(crit.criterios) ? crit.criterios : [];
-  const passou = lista.length - (lista.length ? pendencias(crit).length : 0);
-  console.log(`\nTarefa ativa: ${ativa.nome} · fase ${estado.fase} · critérios ${passou}/${lista.length}`);
-} catch (e) {
-  aviso(`tarefa ativa ${ativa.nome} com arquivos ilegíveis: ${e.message}`);
+if (!ativa) console.log('\nNenhuma tarefa ativa neste projeto.');
+else {
+  try {
+    const estado = lerJson(join(ativa.dir, 'estado.json'));
+    const crit = lerJson(join(ativa.dir, 'criterios.json'));
+    const lista = Array.isArray(crit.criterios) ? crit.criterios : [];
+    const passou = lista.length - (lista.length ? pendencias(crit).length : 0);
+    console.log(`\nTarefa ativa: ${ativa.nome} · fase ${estado.fase} · critérios ${passou}/${lista.length}`);
+  } catch (e) {
+    aviso(`tarefa ativa ${ativa.nome} com arquivos ilegíveis: ${e.message}`);
+  }
+}
+
+// Fila do projeto (.nabuco/fila.json): só aparece quando existe.
+if (existsSync(arquivoFila(projeto))) {
+  try {
+    const r = resumoFila(lerFila(projeto), ativa?.nome ?? null); // item em andamento sem tarefa ativa = parada
+    const curto = t => { const u = t.replace(/\s+/g, ' ').trim(); return u.length > 60 ? `${u.slice(0, 59)}…` : u; };
+    const partes = [`Fila: ${r.pendentes} pendente${r.pendentes === 1 ? '' : 's'}`];
+    if (r.parada) partes.push(`parada: ${curto(r.parada.motivo)}`);
+    if (r.proximo) partes.push(`próximo: ${r.proximo.id} ${curto(r.proximo.pedido)}`);
+    if (r.em_andamento) partes.push(`em andamento: ${r.em_andamento.id}`);
+    console.log(partes.join(' · '));
+  } catch (e) {
+    aviso(e.message);
+  }
 }

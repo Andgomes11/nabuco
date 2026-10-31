@@ -34,6 +34,11 @@
   <div class="area">
     <ul id="grade" class="grade" aria-busy="true"></ul>
     <aside class="lateral" aria-labelledby="lt-titulo">
+      <section id="fila" class="fila" aria-labelledby="fila-titulo" hidden>
+        <h2 id="fila-titulo" class="rotulo lt-titulo">fila <span id="fila-resumo" class="fila-resumo"></span></h2>
+        <p id="fila-aviso" class="tarefa-aviso fila-aviso" role="status" hidden></p>
+        <ol id="fila-itens" class="fila-itens"></ol>
+      </section>
       <h2 id="lt-titulo" class="rotulo lt-titulo">linha do tempo</h2>
       <p id="linha-vazia" class="linha-vazia">nenhuma tarefa ativa</p>
       <ol id="linha" class="linha" aria-live="off"></ol>

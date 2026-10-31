@@ -78,3 +78,38 @@ test('status sem setup avisa', () => {
   assert.match(r.stdout, /⚠️ .*rode o setup/);
   assert.match(r.stdout, /Nenhuma tarefa ativa/);
 });
+
+test('status: mostra a fila (pendentes e próximo) com e sem tarefa ativa; fila ilegível avisa', () => {
+  const proj = join(base, 'Projeto fila'); mkdirSync(join(proj, '.git'), { recursive: true });
+  const fila = (...a) => spawnSync(process.execPath, [join(RAIZ, 'scripts', 'fila.mjs'), ...a], { cwd: proj, encoding: 'utf8', env });
+  assert.doesNotMatch(run('status.mjs', [], proj).stdout, /Fila:/); // sem fila.json: nada
+  fila('add', '--pedido=corrigir o login'); fila('add', '--pedido=tela de perfil');
+  let r = run('status.mjs', [], proj);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Nenhuma tarefa ativa/);
+  assert.match(r.stdout, /Fila: 2 pendentes · próximo: f1 corrigir o login/);
+  spawnSync(process.execPath, [join(RAIZ, 'scripts', 'tarefa.mjs'), 'nova', '--slug', 'login', '--tamanho', 'media', '--tipo', 'bug', '--fila', 'f1'], { cwd: proj, env });
+  r = run('status.mjs', [], proj);
+  assert.match(r.stdout, /Tarefa ativa: \d{4}-\d{2}-\d{2}-login/);
+  assert.match(r.stdout, /Fila: 1 pendente · próximo: f2 tela de perfil · em andamento: f1/);
+  spawnSync(process.execPath, [join(RAIZ, 'scripts', 'tarefa.mjs'), 'abandonar'], { cwd: proj, env });
+  r = run('status.mjs', [], proj);
+  assert.match(r.stdout, /Fila: 1 pendente · parada: item f1 abandonado · próximo: f2 tela de perfil/);
+  writeFileSync(join(proj, '.nabuco', 'fila.json'), '{quebrado');
+  r = run('status.mjs', [], proj);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /⚠️ .*fila\.json ilegível/);
+});
+
+test('status: fila com item em andamento sem tarefa ativa mostra a parada', () => {
+  const proj = join(base, 'Projeto fila orfa'); mkdirSync(join(proj, '.git'), { recursive: true });
+  const fila = (...a) => spawnSync(process.execPath, [join(RAIZ, 'scripts', 'fila.mjs'), ...a], { cwd: proj, encoding: 'utf8', env });
+  fila('add', '--pedido=a'); fila('add', '--pedido=b');
+  const arq = join(proj, '.nabuco', 'fila.json');
+  const f = JSON.parse(readFileSync(arq, 'utf8'));
+  Object.assign(f.itens[0], { status: 'em_andamento', tarefa: '2026-10-31-a' });
+  writeFileSync(arq, JSON.stringify(f));
+  const r = run('status.mjs', [], proj);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /Fila: 1 pendente · parada: item f1 ficou em andamento sem tarefa ativa · próximo: f2 b/);
+});

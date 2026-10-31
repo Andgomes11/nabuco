@@ -237,6 +237,20 @@ kbd {
 .lt-item[data-classe="marco"] .lt-texto { color: var(--texto); font-weight: 700; }
 .lt-item[data-classe="nota"] .lt-texto { color: var(--texto-suave); }
 
+/* fila: pedidos na ordem de execução, acima da linha do tempo */
+.fila { border-bottom: 1px solid var(--borda); }
+.fila-resumo { text-transform: none; letter-spacing: 0; margin-left: var(--e2); }
+.fila-aviso { padding: 0 var(--e4); }
+.fila-itens { list-style: none; margin: 0; padding: var(--e2) 0; overflow-y: auto; max-height: 30vh; font-size: var(--t-sm); }
+.fila-item { display: grid; grid-template-columns: 5ch minmax(0, 1fr); gap: var(--e3); padding: var(--e1) var(--e4); border-left: 2px solid transparent; }
+.fila-id { color: var(--texto-suave); font-variant-numeric: tabular-nums; }
+.fila-texto { overflow-wrap: anywhere; }
+.fila-status { color: var(--texto-suave); font-size: var(--t-xs); margin-left: var(--e2); }
+.fila-item[data-status="em_andamento"] { border-left-color: var(--verde); }
+.fila-item[data-status="em_andamento"] .fila-texto, .fila-item[data-status="em_andamento"] .fila-status { color: var(--verde-texto); }
+.fila-item[data-status="feito"] .fila-texto, .fila-item[data-status="abandonado"] .fila-texto { color: var(--texto-suave); }
+.fila-item[data-status="abandonado"] .fila-status { color: var(--vermelho); }
+
 @media (min-width: 900px) {
   .grade { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--e5); }
 }

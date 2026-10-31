@@ -214,3 +214,22 @@ test('dono da tarefa: a sessão que roda tarefa.mjs vira dona; o gate só segura
   // payload inválido não quebra
   assert.equal(spawnSync(process.execPath, [DONO], { cwd: proj, input: '{', encoding: 'utf8', env: env() }).status, 0);
 });
+
+test('fila: sem tarefa ativa e com itens pendentes na fila, o gate não bloqueia', () => {
+  const fila = (...a) => spawnSync(process.execPath, [join(RAIZ, 'scripts', 'fila.mjs'), ...a], { cwd: proj, encoding: 'utf8', env: env() });
+  fila('add', '--pedido=primeiro'); fila('add', '--pedido=segundo');
+  // fila pendente, nenhuma tarefa aberta ainda
+  let r = gate({ cwd: proj, hook_event_name: 'Stop' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '');
+  // um item concluído e outro ainda pendente: a continuação é da skill, não do gate
+  tarefa('nova', '--slug', 'a', '--tamanho', 'trivial', '--tipo', 'bug', '--fila', 'f1');
+  tarefa('criterio-add', '--id', 'c1', '--descricao', 'd', '--verificacao', 'v');
+  tarefa('aprovar');
+  tarefa('criterio', '--id', 'c1', '--status', 'passou', '--evidencia=ok');
+  assert.equal(tarefa('concluir').status, 0);
+  r = gate({ cwd: proj, hook_event_name: 'Stop' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, '');
+  assert.equal(JSON.parse(readFileSync(join(proj, '.nabuco', 'fila.json'), 'utf8')).itens[1].status, 'pendente');
+});

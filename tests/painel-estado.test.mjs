@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { montarEstado, FUNCIONARIOS, NIVEL_NUM, MAX_LINHA } from '../scripts/lib/painel-estado.mjs';
+import { montarEstado, FUNCIONARIOS, NIVEL_NUM, MAX_LINHA, MAX_FILA } from '../scripts/lib/painel-estado.mjs';
 
 const AGORA = Date.UTC(2026, 5, 1, 12, 0, 0);
 const min = m => new Date(AGORA - m * 60000).toISOString();
@@ -214,4 +214,40 @@ test('naTarefaAberta: quem participou da tarefa aberta é marcado mesmo sem tare
   assert.equal(func(est, 'arquiteto').naTarefaAberta, true);
   assert.equal(func(est, 'arquiteto').amostra, 0);
   assert.equal(func(est, 'devops').naTarefaAberta, false);
+});
+
+test('fila: null sem fila; resumo com pendentes, itens enxutos e aviso', () => {
+  assert.equal(montarEstado({ ...base, eventos: [] }).fila, null);
+  const fila = {
+    commit_por_item: true,
+    itens: [
+      { id: 'f1', pedido: 'feito antes', criado: 'x', status: 'feito', tarefa: '2026-10-31-a' },
+      { id: 'f2', pedido: 'em curso', criado: 'x', status: 'em_andamento', tarefa: '2026-10-31-b', extra: { grande: 1 } },
+      { id: 'f3', pedido: 'p'.repeat(400), criado: 'x', status: 'pendente', tarefa: null },
+      null, 'lixo',
+    ],
+  };
+  const est = montarEstado({ ...base, eventos: [], fila });
+  assert.equal(est.fila.pendentes, 1);
+  assert.equal(est.fila.commit_por_item, true);
+  assert.equal(est.fila.aviso, null);
+  assert.equal(est.fila.parada, null);
+  const parada = { motivo: 'item f2 abandonado', desde: '2026-10-31T11:00:00.000Z', item: 'f2', lixo: 'x'.repeat(5000) };
+  assert.deepEqual(montarEstado({ ...base, eventos: [], fila: { ...fila, parada } }).fila.parada, { motivo: 'item f2 abandonado', desde: '2026-10-31T11:00:00.000Z', item: 'f2' });
+  assert.equal(montarEstado({ ...base, eventos: [], fila: { ...fila, parada: 'sim' } }).fila.parada, null);
+  assert.deepEqual(est.fila.itens.map(i => [i.id, i.status, i.tarefa]), [['f1', 'feito', '2026-10-31-a'], ['f2', 'em_andamento', '2026-10-31-b'], ['f3', 'pendente', null]]);
+  assert.equal(est.fila.itens[2].pedido.length, 200);
+  assert.deepEqual(Object.keys(est.fila.itens[1]).sort(), ['id', 'pedido', 'status', 'tarefa']);
+  const comAviso = montarEstado({ ...base, eventos: [], fila: { ...fila, aviso: 'fila.json ilegível' } });
+  assert.equal(comAviso.fila.aviso, 'fila.json ilegível');
+  // fila vazia (todos removidos) = sem fila para mostrar
+  assert.equal(montarEstado({ ...base, eventos: [], fila: { commit_por_item: false, itens: [] } }).fila, null);
+  // muitos itens: os pendentes e o em andamento nunca somem; dos encerrados ficam os mais recentes
+  const muitos = Array.from({ length: MAX_FILA + 20 }, (_, i) => ({ id: `f${i + 1}`, pedido: 'x', status: 'feito', tarefa: 't' }));
+  muitos.push({ id: 'f999', pedido: 'ultimo', status: 'pendente', tarefa: null });
+  const m = montarEstado({ ...base, eventos: [], fila: { itens: muitos } }).fila;
+  assert.equal(m.itens.length, MAX_FILA);
+  assert.equal(m.itens.at(-1).id, 'f999');
+  assert.equal(m.pendentes, 1);
+  assert.equal(m.ocultos, 21);
 });

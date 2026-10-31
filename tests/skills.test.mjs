@@ -185,3 +185,52 @@ test('relatorio: roda o script, mostra, oferece --gravar e nunca envia sem pedid
   assert.match(r, /nada foi conferido/);
   assert.match(r, /ok do usuário[^\n]*--gravar/);
 });
+
+test('fila: triagem ao enfileirar, CLI, nunca pula aprovação, para em falha e commit por item', () => {
+  assert.ok(skills.includes('fila'));
+  const f = lerSkill('fila');
+  for (const s of ['`F` = `node "$NABUCO/scripts/fila.mjs"`', 'F add --pedido="', 'F listar', 'F proximo', 'F remover --id', 'F mover --id',
+    'F config --commit-por-item', 'T nova', '--fila <id>', 'skills/tarefa/SKILL.md', '/nabuco:fila', '$fila', '/nabuco:retro', '$retro']) {
+    assert.ok(f.includes(s), `faltou "${s}"`);
+  }
+  assert.match(f, /ambígu/i);
+  assert.match(f, /nunca pula a aprovação/i);
+  assert.match(f, /uma tarefa ativa por vez/i);
+  assert.match(f, /abandonad[\s\S]*para[\s\S]*pergunt/i);
+  assert.match(f, /commit_por_item/);
+  assert.match(f, /retro[^\n]*uma vez/i);
+  assert.ok(f.indexOf('add --pedido') < f.indexOf('proximo'), 'montar a fila vem antes de executar');
+  // a escolha de commit é sempre gravada e vale só para esta fila; parada só sai com pedido do usuário
+  assert.ok(f.includes('F config --commit-por-item sim') && f.includes('F config --commit-por-item nao'), 'grava sim e não explicitamente');
+  assert.match(f, /só para (esta|a) fila/i);
+  assert.match(f, /parada[\s\S]*pergunt[\s\S]*F retomar/i);
+});
+
+test('tarefa: integra a fila (§0 proximo, §1 --fila, §5 git diff <base>, §7 segue a fila)', () => {
+  const t = lerSkill('tarefa');
+  const secao = n => t.slice(t.indexOf(`## ${n}.`), t.indexOf(`## ${n + 1}.`) === -1 ? t.indexOf('## Sempre') : t.indexOf(`## ${n + 1}.`));
+  assert.ok(secao(0).includes('fila.mjs" proximo'), '§0 sem tarefa ativa consulta a fila');
+  assert.ok(secao(1).includes('--fila <id>'), '§1 cria a tarefa do item com --fila');
+  assert.ok(secao(5).includes('git diff <base>'), '§5 entrega aos checadores o diff desde a base');
+  assert.match(secao(5), /sem `base`/);
+  assert.ok(secao(7).includes('fila.mjs" listar'), '§7 mostra a fila');
+  assert.match(secao(7), /commit_por_item/);
+  assert.match(secao(7), /retro[^\n]*uma vez[^\n]*fim da fila|fim da fila[^\n]*retro/i);
+  // §0 sem argumentos não encadeia sozinho: mostra o próximo item (ou a parada) e pergunta
+  assert.match(secao(0), /mostre o (próximo )?item[^\n]*pergunte/i);
+  assert.match(secao(0), /parada[^\n]*motivo[^\n]*pergunte/i);
+  assert.ok(secao(0).includes('fila.mjs" retomar'), '§0 retoma a fila parada só com ok');
+  assert.ok(secao(5).includes('T arquivos-novos'), '§5 lista os não rastreados desta tarefa');
+  assert.match(secao(5), /arquivo inteiro/);
+});
+
+test('commit por item da fila: lista exata via T arquivos-novos --tarefa, nunca git add -A; lista não confiável → pergunta', () => {
+  const t = lerSkill('tarefa');
+  const s7 = t.slice(t.indexOf('## 7.'), t.indexOf('## Sempre'));
+  const f = lerSkill('fila');
+  for (const [nome, txt] of [['tarefa §7', s7], ['fila', f]]) {
+    assert.ok(txt.includes('T arquivos-novos --tarefa <nome>'), `${nome}: monta a lista com arquivos-novos --tarefa`);
+    assert.match(txt, /nunca `git add -A`/, `${nome}: proíbe git add -A`);
+    assert.match(txt, /não (for )?confiável[^\n]*pergunte/i, `${nome}: lista não confiável → pergunta`);
+  }
+});
