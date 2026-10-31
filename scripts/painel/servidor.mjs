@@ -9,11 +9,13 @@ import { spawn } from 'node:child_process';
 import { nabucoHome, acharProjeto, lerAtiva, dirProjeto } from '../lib/caminhos.mjs';
 import { lerJson } from '../lib/json.mjs';
 import { leitorHistorico, calcularMetricas } from '../lib/metricas.mjs';
-import { carregarModelos } from '../lib/modelos.mjs';
+import { carregarModelosTodos } from '../lib/modelos.mjs';
 import { parseFrontmatter } from '../lib/frontmatter.mjs';
-import { montarEstado, FUNCIONARIOS } from '../lib/painel-estado.mjs';
+import { montarEstado } from '../lib/painel-estado.mjs';
 import { montarDossie } from '../lib/dossie.mjs';
 import { blocosDe } from '../lib/repositorio-licoes.mjs';
+import { PAPEIS } from '../lib/constantes.mjs';
+import { contratados, papeis, escritores } from '../lib/time.mjs';
 
 const RAIZ_PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PUBLICO = join(dirname(fileURLToPath(import.meta.url)), 'publico');
@@ -28,7 +30,6 @@ const ESTATICOS = new Map([
 ]);
 const RE_AVATAR = /^[a-z]+-[1-4]\.jpg$/;
 const RE_LICAO = /^[a-z]+-\d{4,}$/;
-const PAPEL_SET = new Set(FUNCIONARIOS);
 
 const SEGURANCA = {
   'x-content-type-options': 'nosniff',
@@ -42,15 +43,16 @@ const PING = 15000;
 const LIMITE_FILA = 1024 * 1024; // cliente SSE que não lê: acima disso na fila, é desconectado
 const RECALCULO = 30; // a cada 30 verificações sem mudança, recalcula (expiração de 30 min depende do relógio)
 
-function nomesDe(raiz) {
+// Embutidos: nome do frontmatter de papeis/<p>.md do plugin; contratados: nome do registro.
+function nomesDe(raiz, home) {
   const nomes = { gerente: 'Gerente' };
-  for (const papel of FUNCIONARIOS) {
-    if (papel === 'gerente') continue;
+  for (const papel of PAPEIS) {
     try {
       const { dados } = parseFrontmatter(readFileSync(join(raiz, 'papeis', `${papel}.md`), 'utf8'));
       if (typeof dados.nome === 'string' && dados.nome) nomes[papel] = dados.nome;
     } catch { /* sem arquivo ou frontmatter inválido: usa o papel */ }
   }
+  for (const c of contratados(home)) nomes[c.papel] = c.nome;
   return nomes;
 }
 
@@ -144,7 +146,12 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
   projeto = resolve(projeto ?? acharProjeto(process.cwd()));
   const chave = randomBytes(16).toString('hex');
   const chaveBuf = Buffer.from(chave, 'utf8');
-  const nomes = nomesDe(raiz);
+  // Time lido uma vez: quem contratar ou remover alguém reinicia o painel. Contratado não tem avatar
+  // (montarEstado devolve avatar null e o front mostra a silhueta).
+  const funcionarios = ['gerente', ...papeis(home)];
+  const papelSet = new Set(funcionarios);
+  const listas = { papeis: funcionarios, escritores: escritores(home) };
+  const nomes = nomesDe(raiz, home);
   const avatares = avataresDe(raiz);
   const nomeProjeto = basename(projeto);
   const arqHistorico = join(home, 'historico.jsonl');
@@ -155,6 +162,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
   const estadoAtual = () => montarEstado({
     eventos: lerHistorico(), tarefa: lerTarefa(), projeto: nomeProjeto, nomes, avatares, limite: lerLimite(), agora: Date.now(),
+    funcionarios, escritores: listas.escritores,
   });
 
   let portaReal = 0;
@@ -208,11 +216,11 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
     if (partes[1] === 'dossie' && partes.length === 3) {
       const papel = partes[2];
-      if (!PAPEL_SET.has(papel)) return texto(res, 404, 'não encontrado');
+      if (!papelSet.has(papel)) return texto(res, 404, 'não encontrado');
       const eventos = lerHistorico();
       // versao = eventos usados: o front pede as fontes com ela, e os índices batem com o dossiê exibido
       return jsonRes(res, {
-        ...montarDossie({ papel, eventos, home, projeto, modelos: carregarModelos(raiz), nome: nomes[papel] }),
+        ...montarDossie({ papel, eventos, home, projeto, modelos: carregarModelosTodos(raiz, home), nome: nomes[papel], ...listas }),
         versao: eventos.length,
       });
     }
@@ -220,7 +228,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
     // votos de uma lição (👍/👎 do dossiê) → os eventos licao_usada dela, sobre os v primeiros do histórico
     if (partes[1] === 'fontes' && partes.length === 5 && partes[3] === 'licao') {
       const [, , papel, , id] = partes;
-      if (!PAPEL_SET.has(papel) || !RE_LICAO.test(id)) return texto(res, 404, 'não encontrado');
+      if (!papelSet.has(papel) || !RE_LICAO.test(id)) return texto(res, 404, 'não encontrado');
       const v = url.searchParams.get('v');
       if (v === null || !/^\d{1,15}$/.test(v)) return texto(res, 400, 'versão inválida');
       const versao = Number(v);
@@ -236,7 +244,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
 
     if (partes[1] === 'fontes' && partes.length === 4) {
       const [, , papel, indicador] = partes;
-      if (!PAPEL_SET.has(papel)) return texto(res, 404, 'não encontrado');
+      if (!papelSet.has(papel)) return texto(res, 404, 'não encontrado');
       const v = url.searchParams.get('v');
       if (v === null || !/^\d{1,15}$/.test(v)) return texto(res, 400, 'versão inválida');
       const versao = Number(v);
@@ -244,7 +252,7 @@ export function iniciar({ porta = 0, raiz = RAIZ_PLUGIN, projeto, home = nabucoH
       if (versao > eventos.length) return texto(res, 409, 'histórico mudou; recarregue');
       // calcula sobre o que o cliente viu: os índices batem com o estado exibido
       const vistos = eventos.slice(0, versao);
-      const fontes = calcularMetricas(vistos, { fontes: true })[papel]?.fontes;
+      const fontes = calcularMetricas(vistos, { ...listas, fontes: true })[papel]?.fontes;
       if (!fontes || !Object.hasOwn(fontes, indicador)) return texto(res, 404, 'não encontrado');
       return jsonRes(res, { eventos: fontes[indicador].map(i => vistos[i]).filter(Boolean) });
     }

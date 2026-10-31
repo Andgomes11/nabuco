@@ -50,14 +50,15 @@ const fontesDe = (fontes, indicadores, mapa) =>
 
 // Atributos com todos os eventos vs. sem os eventos das 10 tarefas fechadas mais recentes.
 // Sem "antes" real (as fontes do atributo são as mesmas nos dois lados, ou o antes não tem fonte) => null.
-export function tendencia(eventos, papel) {
+// `listas` = { papeis, escritores } repassado a calcularMetricas (padrão: embutidos).
+export function tendencia(eventos, papel, listas = {}) {
   const evs = Array.isArray(eventos) ? eventos : [];
   const recentes = tarefasRecentes(evs, TAREFAS_RECENTES);
   const mapa = [];
   evs.forEach((e, i) => { const k = e && typeof e === 'object' ? chaveTarefa(e) : null; if (k === null || !recentes.has(k)) mapa.push(i); });
   const antigos = mapa.map(i => evs[i]);
-  const mAgora = calcularMetricas(evs, { fontes: true })[papel];
-  const mAntes = calcularMetricas(antigos, { fontes: true })[papel];
+  const mAgora = calcularMetricas(evs, { ...listas, fontes: true })[papel];
+  const mAntes = calcularMetricas(antigos, { ...listas, fontes: true })[papel];
   const agora = atributos(mAgora);
   const antes = atributos(mAntes);
   const res = NULO();
@@ -91,9 +92,10 @@ function diarioDe(home, papel) {
     }));
 }
 
-export function montarDossie({ papel, eventos, home, projeto, modelos, nome }) {
+export function montarDossie({ papel, eventos, home, projeto, modelos, nome, papeis, escritores }) {
   const evs = Array.isArray(eventos) ? eventos : [];
-  const todas = calcularMetricas(evs, { fontes: true })[papel];
+  const listas = { papeis, escritores };
+  const todas = calcularMetricas(evs, { ...listas, fontes: true })[papel];
   const { fontes = {}, ...metricas } = todas ?? {};
   const blocos = [...blocosDe('global', papel, projeto), ...blocosDe('projeto', papel, projeto)];
   return {
@@ -106,7 +108,7 @@ export function montarDossie({ papel, eventos, home, projeto, modelos, nome }) {
     amostra: metricas.amostra ?? 0,
     metricas,
     atributos: atributos(metricas),
-    tendencia: tendencia(evs, papel),
+    tendencia: tendencia(evs, papel, listas),
     fontes,
     equipamento: papel === 'gerente'
       ? { claude: 'sessão', codex: 'sessão' }

@@ -41,10 +41,10 @@ export const ativas = blocos => blocos.filter(b => !b.regra);
 
 export const papelDoId = id => String(id ?? '').match(/^([a-z]+)-\d+$/)?.[1] ?? null;
 
-// Procura a lição primeiro no projeto, depois no global. null se não existir.
-export function acharLicao(id, projeto) {
+// Procura a lição primeiro no projeto, depois no global. null se não existir (ou se o papel não está em `papeis`).
+export function acharLicao(id, projeto, papeis = PAPEIS_CEREBRO) {
   const papel = papelDoId(id);
-  if (!papel || !PAPEIS_CEREBRO.includes(papel)) return null;
+  if (!papel || !papeis.includes(papel)) return null;
   for (const escopo of ['projeto', 'global']) {
     const arquivo = arquivoLicoes(escopo, papel, projeto);
     if (!arquivo) continue;

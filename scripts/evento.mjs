@@ -5,16 +5,21 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { acharProjeto, lerAtiva, nomeTarefaValido, nabucoHome } from './lib/caminhos.mjs';
 import { registrar, detectarHarness } from './lib/eventos.mjs';
-import { carregarModelos, configDe } from './lib/modelos.mjs';
+import { carregarModelosTodos, configDe } from './lib/modelos.mjs';
 import { PAPEIS } from './lib/constantes.mjs';
+import { papeis } from './lib/time.mjs';
 
 const RAIZ_PLUGIN = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MAPA = { SubagentStart: 'agente_inicio', SubagentStop: 'agente_fim' };
 
-export function normalizarPapel(agentType) {
+// `validos`: embutidos + contratados (padrão: só os embutidos). Contratado só vale com o prefixo
+// nabuco- (o nome do agente instalado): um agente alheio de mesmo nome não vira funcionário.
+export function normalizarPapel(agentType, validos = PAPEIS) {
   if (!agentType) return null;
-  const p = String(agentType).replace(/^nabuco[:-]/, '');
-  return PAPEIS.includes(p) ? p : null;
+  const s = String(agentType);
+  const p = s.replace(/^nabuco[:-]/, '');
+  if (PAPEIS.includes(p)) return p;
+  return p !== s && validos.includes(p) ? p : null;
 }
 
 const CAUDA = 2 * 1024 * 1024; // do histórico global, só o fim interessa: o início é recente
@@ -48,7 +53,7 @@ function modoHook() {
   const tipo = MAPA[payload.hook_event_name];
   const projeto = acharProjeto(payload.cwd || process.cwd());
   const harness = detectarHarness(payload);
-  let papel = normalizarPapel(payload.agent_type);
+  let papel = normalizarPapel(payload.agent_type, papeis());
   // fim sem agent_type: o Claude Code também dispara SubagentStop para agentes internos dele, que não
   // têm início registrado. Só grava se houver o início (e herda o papel dele); senão é ruído no histórico
   let ini = null;
@@ -63,7 +68,7 @@ function modoHook() {
   if (payload.agent_id) dados.agent_id = payload.agent_id;
   const agente = payload.agent_type || ini?.dados?.agente;
   if (!papel && agente) dados.agente = agente;
-  const cfg = papel ? configDe(carregarModelos(RAIZ_PLUGIN), harness === 'codex' ? 'codex' : 'claude', papel) : null;
+  const cfg = papel ? configDe(carregarModelosTodos(RAIZ_PLUGIN), harness === 'codex' ? 'codex' : 'claude', papel) : null;
   if (cfg) { dados.modelo = cfg.model ?? 'herdado'; dados.effort = cfg.effort; }
   if (ini) dados.duracao_ms = Date.now() - Date.parse(ini.ts);
   registrar({ tipo, papel, dados, projeto, harness });

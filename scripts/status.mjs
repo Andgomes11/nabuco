@@ -8,6 +8,7 @@ import { lerJson } from './lib/json.mjs';
 import { construir, diferencas } from './lib/build.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { detectarHarness } from './lib/eventos.mjs';
+import { lerTime, destinos, gerarArquivos, agenteEhNosso } from './lib/time.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const codexHome = () => process.env.CODEX_HOME || join(homedir(), '.codex');
@@ -45,6 +46,34 @@ if (instalados.length === tomls.length && instalados.every(f => readFileSync(joi
 } else if (instalados.length) aviso(`agentes do Codex desatualizados ou incompletos (${instalados.length}/${tomls.length}) — rode o setup`);
 else console.log('ℹ️ agentes do Codex não instalados');
 if (config?.checadores_locais) console.log('ℹ️ checadores rodando como agentes locais (nabuco-<papel>)');
+
+// Contratados (~/.nabuco/time): modelos e se o agente instalado bate com o registro.
+// Aviso do registro sempre aparece: um contratado inválido nunca some em silêncio.
+const time = lerTime(home);
+for (const a of time.avisos) aviso(`registro do time: ${a}`);
+if (time.contratados.length) {
+  console.log('\nContratado   Tipo      Claude              Codex');
+  for (const c of time.contratados) console.log(`${c.papel.padEnd(12)} ${c.tipo.padEnd(9)} ${fmt(c.claude).padEnd(19)} ${fmt(c.codex)}`);
+  const situacao = (arq, esperado) => {
+    try {
+      if (!existsSync(arq)) return 'não instalado';
+      if (!agenteEhNosso(arq)) return 'alheio (não é do nabuco)';
+      return readFileSync(arq, 'utf8') === esperado ? 'atualizado' : 'desatualizado';
+    } catch (e) { return `ilegível (${e.message})`; }
+  };
+  for (const c of time.contratados) {
+    const dst = destinos(c.papel);
+    const g = gerarArquivos(c);
+    const sc = situacao(dst.claude, g.claude);
+    const sx = situacao(dst.codex, g.codex);
+    const linha = `${c.papel}: Claude ${sc} · Codex ${sx}`;
+    // Codex ausente não é problema (pode não ser usado); Claude fora do ar ou qualquer cópia velha é
+    if (sc === 'atualizado' && ['atualizado', 'não instalado'].includes(sx)) ok(linha);
+    // alheio: instalar recusaria; quem resolve é o usuário (mover o agente dele ou remover o contratado)
+    else if ([sc, sx].some(s => s.startsWith('alheio'))) aviso(`${linha} — há agente do usuário com o mesmo nome; o nabuco não o sobrescreve`);
+    else aviso(`${linha} — rode "contratar instalar --papel ${c.papel}"`);
+  }
+} else if (!time.avisos.length) console.log('ℹ️ nenhum funcionário contratado');
 
 const projeto = acharProjeto(process.cwd());
 const ativa = lerAtiva(projeto);

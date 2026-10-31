@@ -6,7 +6,8 @@ import { acharProjeto, nabucoHome, dirTarefas, lerAtiva, nomeTarefaValido } from
 import { coletarSinais, propostasHigiene } from './lib/sinais.mjs';
 import { lerJson } from './lib/json.mjs';
 import { registrar } from './lib/eventos.mjs';
-import { CUSTO_ALTO_TURNOS, PAPEIS_CEREBRO, LIMITE_LICOES, LIMIAR_DUPLICATA, LIMIAR_SIMILAR, AMOSTRA_NIVEL, MAX_BUSCA, MAX_CASOS_BUSCA } from './lib/constantes.mjs';
+import { CUSTO_ALTO_TURNOS, LIMITE_LICOES, LIMIAR_DUPLICATA, LIMIAR_SIMILAR, AMOSTRA_NIVEL, MAX_BUSCA, MAX_CASOS_BUSCA } from './lib/constantes.mjs';
+import { papeisCerebro, escritores } from './lib/time.mjs';
 import { similaridade, normalizarTag } from './lib/texto.mjs';
 import { validarCaso, gravarCaso, lerCasos } from './lib/casos.mjs';
 import { calcularMetricas, lerHistorico } from './lib/metricas.mjs';
@@ -22,6 +23,8 @@ class ErroUso extends Error {}
 class ErroRegra extends Error {}
 
 const projeto = acharProjeto(process.cwd());
+// Papéis aceitos: embutidos + contratados (~/.nabuco/time) + gerente. Contratado removido sai daqui (adormece).
+const VALIDOS = papeisCerebro();
 const [comando, ...resto] = process.argv.slice(2);
 
 function opcoes(spec) {
@@ -70,9 +73,9 @@ function recorrenciaAutomatica(c, dirTarefa) {
     if (e.tipo === 'licao_usada' && typeof e.dados?.id === 'string') ids.add(e.dados.id);
   }
   if (!ids.size) return null;
-  const casos = lerCasos(nabucoHome());
+  const casos = lerCasos(nabucoHome(), null, VALIDOS);
   for (const id of ids) {
-    const achada = acharLicao(id, projeto);
+    const achada = acharLicao(id, projeto, VALIDOS);
     if (!achada) continue;
     const evid = new Set(achada.bloco.evidencia.map(x => caminhoCaso(x)));
     if (casos.some(x => evid.has(x.arquivo) && scoreSimilar(c, x) >= LIMIAR_SIMILAR)) return id;
@@ -101,7 +104,7 @@ function errosLicao(l, parcial) {
 }
 
 function exigirLicao(id) {
-  const achada = acharLicao(id, projeto);
+  const achada = acharLicao(id, projeto, VALIDOS);
   if (!achada) throw new ErroRegra(`lição "${id}" não encontrada`);
   return achada;
 }
@@ -169,7 +172,7 @@ const comandos = {
   'caso-add'() {
     const { values: v } = opcoes({ de: { type: 'string' } });
     const c = lerEntrada(v.de);
-    const erros = validarCaso(c);
+    const erros = validarCaso(c, VALIDOS);
     if (erros.length) throw new ErroRegra('caso inválido:\n' + erros.map(e => `  - ${e}`).join('\n'));
     if (!c.recorrencia_de) {
       const id = recorrenciaAutomatica(c, tarefaDoRascunho(v.de));
@@ -187,15 +190,15 @@ const comandos = {
 
   casos() {
     const { values: v } = opcoes({ papel: { type: 'string' } });
-    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
-    const lista = lerCasos(nabucoHome(), v.papel).map(c => ({ arquivo: c.arquivo, papel: c.papel, sintoma: c.sintoma ?? '', tags: c.tags }));
+    if (v.papel && !VALIDOS.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${VALIDOS.join(', ')}`);
+    const lista = lerCasos(nabucoHome(), v.papel, VALIDOS).map(c => ({ arquivo: c.arquivo, papel: c.papel, sintoma: c.sintoma ?? '', tags: c.tags }));
     console.log(JSON.stringify(lista, null, 2));
   },
 
   similares() {
     const { values: v } = opcoes({ de: { type: 'string' } });
     const c = lerEntrada(v.de);
-    if (!c || !PAPEIS_CEREBRO.includes(c.papel) || typeof c.sintoma !== 'string') throw new ErroUso('--de precisa de papel válido e sintoma');
+    if (!c || !VALIDOS.includes(c.papel) || typeof c.sintoma !== 'string') throw new ErroUso('--de precisa de papel válido e sintoma');
     if (c.tags != null && (!Array.isArray(c.tags) || c.tags.some(t => typeof t !== 'string'))) throw new ErroUso('--de: tags deve ser uma lista de textos');
     const igual = x => String(x.sintoma ?? '').trim() === c.sintoma.trim() && String(x.causa_raiz ?? '').trim() === String(c.causa_raiz ?? '').trim();
     const similares = lerCasos(nabucoHome(), c.papel)
@@ -217,7 +220,7 @@ const comandos = {
     const { values: v } = opcoes({ de: { type: 'string' }, forcar: { type: 'boolean' } });
     const l = lerEntrada(v.de);
     const erros = errosLicao(l, false);
-    if (l && !PAPEIS_CEREBRO.includes(l.papel)) erros.unshift(`papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    if (l && !VALIDOS.includes(l.papel)) erros.unshift(`papel deve ser: ${VALIDOS.join(', ')}`);
     const escopo = l?.escopo ?? 'global';
     if (!ESCOPOS.includes(escopo)) erros.push(`escopo deve ser: ${ESCOPOS.join(', ')}`);
     if (erros.length) throw new ErroRegra('lição inválida:\n' + erros.map(e => `  - ${e}`).join('\n'));
@@ -323,8 +326,8 @@ const comandos = {
 
   licoes() {
     const { values: v } = opcoes({ papel: { type: 'string' }, todas: { type: 'boolean' } });
-    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
-    const lista = (v.papel ? [v.papel] : PAPEIS_CEREBRO)
+    if (v.papel && !VALIDOS.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${VALIDOS.join(', ')}`);
+    const lista = (v.papel ? [v.papel] : VALIDOS)
       .flatMap(p => [...blocosDe('global', p, projeto), ...blocosDe('projeto', p, projeto)])
       .filter(b => v.todas || !b.regra)
       .map(semBruto);
@@ -334,7 +337,7 @@ const comandos = {
   buscar() {
     const { values: v } = opcoes({ papel: { type: 'string' }, texto: { type: 'string' }, arquivos: { type: 'string' }, json: { type: 'boolean' } });
     exigir(v.papel, 'papel'); exigir(v.texto, 'texto');
-    if (!PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    if (!VALIDOS.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${VALIDOS.join(', ')}`);
     const arquivos = (v.arquivos ?? '').split(',').map(x => x.trim()).filter(Boolean);
     const r = ranquear([...blocosDe('projeto', v.papel, projeto), ...blocosDe('global', v.papel, projeto)], { texto: v.texto, arquivos, hoje: hoje() });
     // faltando lições, completa com casos do papel (os que já são evidência das lições achadas ficam de fora)
@@ -382,18 +385,18 @@ const comandos = {
 
   higiene() {
     const { values: v } = opcoes({ papel: { type: 'string' } });
-    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
-    const blocos = (v.papel ? [v.papel] : PAPEIS_CEREBRO)
+    if (v.papel && !VALIDOS.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${VALIDOS.join(', ')}`);
+    const blocos = (v.papel ? [v.papel] : VALIDOS)
       .flatMap(p => [...blocosDe('global', p, projeto), ...blocosDe('projeto', p, projeto)]);
     console.log(JSON.stringify(propostasHigiene(ativas(blocos), hoje()), null, 2));
   },
 
   metricas() {
     const { values: v } = opcoes({ papel: { type: 'string' }, json: { type: 'boolean' } });
-    if (v.papel && !PAPEIS_CEREBRO.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${PAPEIS_CEREBRO.join(', ')}`);
+    if (v.papel && !VALIDOS.includes(v.papel)) throw new ErroUso(`--papel deve ser: ${VALIDOS.join(', ')}`);
     const eventos = lerHistorico(nabucoHome());
-    const todas = calcularMetricas(eventos);
-    const papeis = v.papel ? [v.papel] : PAPEIS_CEREBRO;
+    const todas = calcularMetricas(eventos, { papeis: VALIDOS, escritores: escritores() });
+    const papeis = v.papel ? [v.papel] : VALIDOS;
     if (v.json) { console.log(JSON.stringify(Object.fromEntries(papeis.map(p => [p, todas[p]])), null, 2)); return; }
     if (!eventos.length) { console.log('Sem dados: o histórico de eventos está vazio, ainda não há métricas de senioridade.'); return; }
     console.log(tabelaMetricas(todas, papeis));

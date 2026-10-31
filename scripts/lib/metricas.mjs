@@ -117,7 +117,8 @@ function janela(eventos, n = JANELA_TAREFAS) {
 
 // Com `{ fontes: true }`, cada papel ganha `fontes: { [indicador]: number[] }` — índices em `eventos` (o array
 // recebido) dos eventos que alimentaram o indicador. Sem a opção, a saída é a mesma da Fase 2.
-export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
+// `papeis`/`escritores`: padrão nos embutidos; quem chama inclui os contratados (scripts/lib/time.mjs).
+export function calcularMetricas(eventos, { fontes: comFontes = false, papeis = PAPEIS_CEREBRO, escritores = ESCRITORES } = {}) {
   const pares = (Array.isArray(eventos) ? eventos : []).map((e, i) => ({ e, i })).filter(({ e }) => ehObj(e) && typeof e.tipo === 'string');
   const naJanela = janela(pares.map(p => p.e));
   // eventos da janela, por tarefa
@@ -130,12 +131,12 @@ export function calcularMetricas(eventos, { fontes: comFontes = false } = {}) {
   }
   const idx = ps => ps.map(p => p.i).sort((a, b) => a - b);
   const resultado = {};
-  for (const papel of PAPEIS_CEREBRO) {
+  for (const papel of papeis) {
     const meus = pares.filter(p => p.e.papel === papel);
     const doPapel = p => p.e.papel === papel;
     const participadas = [...porTarefa.values()].filter(t => t.some(doPapel));
     const amostra = participadas.length;
-    const escritor = ESCRITORES.includes(papel);
+    const escritor = escritores.includes(papel);
     const comoEscritor = escritor ? participadas.filter(t => t.some(p => p.e.tipo === 'agente_inicio' && doPapel(p))) : [];
 
     const ehCorrecao = p => p.e.tipo === 'rodada_correcao' && doPapel(p);

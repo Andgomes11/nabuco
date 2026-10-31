@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { nabucoHome } from './lib/caminhos.mjs';
 import { lerJson, escreverJson } from './lib/json.mjs';
 import { construir, diferencas } from './lib/build.mjs';
+import { lerTime } from './lib/time.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECADORES = ['arquiteto', 'revisor', 'seguranca', 'tester'];
@@ -151,6 +152,16 @@ if (v['cerebro-remoto'] !== undefined) {
   config.cerebro_remoto = url;
   config.sincronizar = true;
   ok(`cérebro sincronizado com ${url} (no início de cada sessão e depois de cada caso ou lição)`);
+}
+
+// 8. contratados (~/.nabuco/time): reinstala pelo contratar.mjs, que nunca sobrescreve agente alheio.
+// O Codex segue a mesma decisão do passo 4.
+const time = lerTime(home);
+if (time.contratados.length || time.avisos.length) {
+  const r = spawnSync(process.execPath, [join(RAIZ, 'scripts', 'contratar.mjs'), 'instalar', '--codex', instalarCodex ? 'sim' : 'nao'], { encoding: 'utf8' });
+  for (const l of `${r.stdout ?? ''}`.split('\n').filter(Boolean)) console.log(l);
+  for (const l of `${r.stderr ?? ''}`.split('\n').filter(Boolean)) aviso(l.replace(/^nabuco: (aviso: )?/, ''));
+  if (r.status !== 0) aviso('contratados: instalação incompleta (veja acima); corrija e rode "contratar instalar"');
 }
 
 escreverJson(arqConfig, config);

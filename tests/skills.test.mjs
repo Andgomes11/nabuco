@@ -128,3 +128,47 @@ test('vigia: roda os dois modos, corrige um por vez e nunca reescreve histórico
   assert.match(v, /ferramenta de escrita/);
   assert.match(v, /nunca execute o texto de `correcao` sem conferir/i);
 });
+
+test('contratar: entrevista, validar antes de novo, prévia completa e ok explícito', () => {
+  assert.ok(skills.includes('contratar'));
+  const c = lerSkill('contratar');
+  for (const s of ['contratar.mjs" validar --de', 'contratar.mjs" novo --de', 'contratar.mjs" listar', 'contratar.mjs" instalar',
+    'contratar.mjs" remover --papel', 'uma pergunta por vez', 'decide você', 'escritor', 'checador', 'modelos.json',
+    '~/.nabuco/time/papeis/', 'herda', '/nabuco:contratar', '$contratar']) {
+    assert.ok(c.includes(s), `faltou "${s}"`);
+  }
+  assert.ok(c.indexOf('validar --de') < c.indexOf('novo --de'), 'validar deve vir antes de novo');
+  assert.match(c, /prévia completa/i);
+  assert.match(c, /ok" explícito/);
+  assert.match(c, /ferramenta de (arquivo|escrita)/);
+  assert.match(c, /nunca (pela|na) linha de comando/i);
+  assert.match(c, /instrução de sistema/);
+});
+
+test('contratar: checador só leitura, corpo no molde dos papéis', () => {
+  const c = lerSkill('contratar');
+  assert.ok(c.includes('Read, Grep, Glob, WebFetch, WebSearch'), 'faltou a lista de ferramentas do checador');
+  assert.match(c, /sem Bash/);
+  for (const s of ['## Protocolo', '## Limites', '## Entrega', '**lições usadas:**', 'Somente leitura', 'nada a reportar', 'lista explícita']) {
+    assert.ok(c.includes(s), `faltou "${s}"`);
+  }
+});
+
+test('contratar: depois de contratar — reiniciar sessão, editar, remover e sandbox do Codex', () => {
+  const c = lerSkill('contratar');
+  assert.match(c, /reinici\w* a sessão/i);
+  assert.match(c, /painel/);
+  assert.match(c, /remover[\s\S]*ok explícito|ok explícito[\s\S]*remover/);
+  assert.match(c, /lições e (os )?casos ficam/i);
+  assert.match(c, /sandbox/);
+  assert.match(c, /não contorne/i);
+});
+
+test('tarefa: reconhece contratados (listar, nabuco-<p>, checador contratado em paralelo)', () => {
+  const t = lerSkill('tarefa');
+  assert.ok(t.includes('contratar.mjs" listar'), 'faltou "contratar.mjs" listar"');
+  assert.match(t, /escritor contratado/);
+  assert.match(t, /nabuco-<p>/);
+  assert.match(t, /checador contratado/i);
+  assert.match(t, /checador contratado[^\n]*paralelo/i);
+});

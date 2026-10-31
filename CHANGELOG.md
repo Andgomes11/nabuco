@@ -7,6 +7,7 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 ### Adicionado
 - Auditor de release (`/nabuco:release` no Claude Code, `$release` no Codex): confere tarefas, versões, comandos e changelog desde a última release.
 - Vigia de segurança (`/nabuco:vigia` no Claude Code, `$vigia` no Codex): modo `ambiente` (permissões amplas, hooks, MCPs, plugins, `.env` versionado e segredos no histórico do git, sempre mascarados) e modo `deps` (`npm audit` e OSV, com "não verificado" quando não dá para checar); correções propostas uma por vez e só aplicadas com aprovação. O Gerente roda `deps --novos` ao abrir cada tarefa e sugere uma tarefa `sensivel` se surgir vulnerabilidade alta nova.
+- Contratar funcionário (`/nabuco:contratar` no Claude Code, `$contratar` no Codex): entrevista curta, prévia completa e ok antes de gravar; o novo escritor ou checador fica em `~/.nabuco/time/`, é instalado como `nabuco-<papel>` no Claude Code e no Codex e é reconhecido pelo Gerente, cérebro, eventos, métricas, painel, status e setup. CLI `scripts/contratar.mjs` com `validar`, `novo`, `listar`, `instalar` e `remover` (lições e casos ficam); checador só com ferramentas de leitura e nunca sobrescreve agente alheio.
 
 ## 0.3.2 — 2026-10-19
 

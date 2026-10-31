@@ -12,10 +12,11 @@ const OBRIGATORIOS = ['sintoma', 'causa_raiz', 'correcao', 'verificacao'];
 const uma = s => String(s).replace(/\s*[\r\n]+\s*/g, ' ').trim();
 const vazio = v => typeof v !== 'string' || !v.trim();
 
-export function validarCaso(c) {
+// `papeis`: os válidos (padrão: embutidos + gerente; quem chama inclui os contratados).
+export function validarCaso(c, papeis = PAPEIS_CEREBRO) {
   const erros = [];
   if (!c || typeof c !== 'object' || Array.isArray(c)) return ['caso deve ser um objeto'];
-  if (!PAPEIS_CEREBRO.includes(c.papel)) erros.push(`papel inválido (use: ${PAPEIS_CEREBRO.join(', ')})`);
+  if (!papeis.includes(c.papel)) erros.push(`papel inválido (use: ${papeis.join(', ')})`);
   for (const k of OBRIGATORIOS) if (vazio(c[k])) erros.push(`falta ${k}`);
   for (const k of CAMPOS_CASO) if (c[k] != null && typeof c[k] !== 'string') erros.push(`${k} deve ser texto`);
   if (c.tags != null && !(Array.isArray(c.tags) && c.tags.every(t => typeof t === 'string'))) erros.push('tags deve ser lista de textos');
@@ -70,8 +71,8 @@ export function gravarCaso(home, c) {
   return `casos/${c.papel}/${nome}`;
 }
 
-export function lerCasos(home, papel) {
-  const papeis = papel ? [papel] : PAPEIS_CEREBRO;
+export function lerCasos(home, papel, todos = PAPEIS_CEREBRO) {
+  const papeis = papel ? [papel] : todos;
   const saida = [];
   for (const p of papeis) {
     const dir = join(home, 'casos', p);

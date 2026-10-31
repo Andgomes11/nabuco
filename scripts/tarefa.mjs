@@ -7,7 +7,8 @@ import { lerJson, escreverJson } from './lib/json.mjs';
 import { pendencias } from './lib/criterios.mjs';
 import { registrar } from './lib/eventos.mjs';
 import { slugify } from './lib/texto.mjs';
-import { TAMANHOS, TIPOS, FASES, PAPEIS } from './lib/constantes.mjs';
+import { TAMANHOS, TIPOS, FASES } from './lib/constantes.mjs';
+import { papeis } from './lib/time.mjs';
 
 class ErroUso extends Error {}
 class ErroRegra extends Error {}
@@ -160,7 +161,9 @@ const comandos = {
     const { values: v } = opcoes({ papel: { type: 'string' }, passo: { type: 'string' } });
     exigirAtiva();
     const para = exigir(v.papel, 'papel');
-    if (!PAPEIS.includes(para)) throw new ErroUso(`--papel inválido; use: ${PAPEIS.join(', ')}`);
+    // embutidos + contratados (~/.nabuco/time)
+    const validos = papeis();
+    if (!validos.includes(para)) throw new ErroUso(`--papel inválido; use: ${validos.join(', ')}`);
     registrar({ tipo: 'delegacao', dados: { para, passo: exigir(v.passo, 'passo').slice(0, 500) }, projeto });
     console.log(`delegação para ${para} registrada`);
   },

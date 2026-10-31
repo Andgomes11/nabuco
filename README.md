@@ -44,6 +44,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Abrir o painel Matrix | `/nabuco:painel` | `$painel` |
 | Auditar uma release | `/nabuco:release` | `$release` |
 | Vigiar segurança do ambiente e dependências | `/nabuco:vigia` | `$vigia` |
+| Contratar um funcionário novo | `/nabuco:contratar` | `$contratar` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
 
@@ -94,6 +95,16 @@ O `deps` guarda em `.nabuco/vigia/deps.json`, por lockfile verificado por comple
 
 Lê `~/.claude/settings.json`, `.claude/settings*.json`, `.mcp.json`, os `mcpServers` do `~/.claude.json` (nada mais dele), os plugins e marketplaces instalados e `~/.codex/config.toml`. Nunca lê o `~/.codex/auth.json` nem credenciais.
 Nunca mostra um segredo inteiro (só os 4 primeiros caracteres e `…`), nunca reescreve o histórico do git nem faz force push (segredo no histórico → rotacione a chave no provedor), nunca roda `npm audit fix --force` e nunca faz commit.
+
+## Contratar
+
+`/nabuco:contratar` (`$contratar`) cria um funcionário novo numa entrevista curta (o que faz, escritor ou checador, ferramentas, nome e modelos), mostra a prévia completa do agente e só grava com o seu ok:
+- Fica registrado em `~/.nabuco/time/` (`papeis/<papel>.md` e `modelos.json`, versionados pelo git de lá) e é instalado como `nabuco-<papel>` em `~/.claude/agents/` e `~/.codex/agents/` (respeita `CLAUDE_CONFIG_DIR` e `CODEX_HOME`); reinicie a sessão (e o painel) para ele aparecer.
+- Checador só lê (`Read, Grep, Glob, WebFetch, WebSearch`, sem Bash); escritor precisa de lista explícita de ferramentas. O corpo segue o molde dos papéis (Protocolo, Limites, Entrega com "lições usadas") e vira instrução de sistema em todos os projetos.
+- O Gerente passa a considerá-lo: escritor contratado cuja descrição cubra a tarefa, checador contratado que se aplique ao diff (em paralelo com os padrões). Cérebro, eventos, métricas, painel e `/nabuco:status` o reconhecem.
+- Por linha de comando: `node <plugin>/scripts/contratar.mjs validar|novo --de <json>`, `listar`, `instalar [--papel p]` (depois de editar o registro; o `/nabuco:setup` também reinstala) e `remover --papel p` (apaga os agentes e o registro; as lições e os casos ficam, e recontratar com o mesmo nome herda).
+
+Nunca sobrescreve um agente `nabuco-<papel>` que não seja do registro. No Codex com sandbox, se a instalação falhar com `EPERM`, rode `contratar.mjs instalar` num terminal comum.
 
 ## Modelos por funcionário
 

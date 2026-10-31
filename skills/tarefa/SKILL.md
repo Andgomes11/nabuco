@@ -23,6 +23,7 @@ Antes, rode `C buscar --papel gerente --texto="<pedido>"` e aplique as lições 
 | `sensivel` | auth, pagamento, dados pessoais, migrations, infra, API pública | plano com checkpoints por fase + Revisor, Segurança e Tester |
 
 Tipo → escritor: `bug` → debugger · `ui` → designer · `infra` → devops · `docs` → docs · `feature`/`refactor` → dev · `estrutural` → consulte o arquiteto antes de planejar, depois dev.
+Rode também `node "$NABUCO/scripts/contratar.mjs" listar`: se a descrição de um escritor contratado cobrir a tarefa melhor que o padrão por tipo, use-o e registre a escolha no plano.
 Se o usuário forçar um tamanho, obedeça. Rode: `T nova --slug <curto> --tamanho <t> --tipo <tipo>` (imprime a pasta da tarefa).
 Depois, rode `node "$NABUCO/scripts/vigia.mjs" deps --novos`: vulnerabilidade **alta** nova → avise o usuário e sugira uma tarefa `sensivel` para ela (nunca abra sozinho nem interrompa a atual); "não verificado" ou falha → siga sem bloquear e cite em uma linha.
 Se `T nova` recusar por já existir tarefa ativa, rode `T status`, mostre a tarefa ao usuário e pergunte se retoma ou abandona — nunca rode `abandonar` sem ok explícito do usuário.
@@ -40,7 +41,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 - `sensivel`: divida o plano em fases; ao fim de cada fase, `T fase aguardando_usuario --motivo="checkpoint fase N"` e peça ok.
 
 ## 4. Executar — um escritor por vez
-- Claude Code: subagente `nabuco:<papel>`. Codex: agente `nabuco-<papel>`.
+- Claude Code: subagente `nabuco:<papel>`. Codex: agente `nabuco-<papel>`. Contratado: `nabuco-<p>` também no Claude Code.
 - **Torne a delegação visível** (o trabalho do subagente aparece recolhido na tela): antes de chamar, rode `T delegar --papel <papel> --passo="<passo que ele vai fazer>"` (vai para a linha do tempo do painel) e escreva ao usuário uma linha `→ <Papel>: <passo>`; ao receber, `← <Papel>: <o que entregou, em uma linha>`. Implementação é sempre do escritor — se você se pegar editando código de produto, pare e delegue.
 - Antes de delegar: `C buscar --papel <escritor> --texto="<sintoma ou pedido>" --arquivos="<arquivos envolvidos>"` (arquivos separados por vírgula).
 - Mensagem ao escritor: caminho da pasta da tarefa, "leia plano.md, criterios.json e progresso.md", o passo exato a fazer agora, o caminho do nabuco (`$NABUCO`) e a saída da busca sob o título "Lições do time" (se vier `(nenhuma lição relevante)`, omita a seção). A busca pode trazer também "Casos parecidos (ainda sem lição)": repasse-os junto, são erros reais que o time já resolveu.
@@ -51,6 +52,7 @@ Leia o código relevante. Para libs envolvidas, use a skill `docs-atuais`. Em `t
 
 ## 5. Checar — por risco
 - `trivial`: pule. `media`: revisor. `sensivel`: revisor, seguranca e tester **em paralelo**.
+- Checador contratado (da lista do §1) cuja descrição se aplique ao diff entra em paralelo com os padrões, como `nabuco-<p>`.
 - Rode `T fase checando`, um `T delegar --papel <checador> --passo="revisar o diff"` por checador, e anuncie `→ checando com <Revisor, Segurança, Tester>`; ao receber, `← <Papel>: <n achados ou nada a reportar>`. Entregue a cada checador só: o `git diff` da tarefa, o plano e os critérios — nada do histórico. Instrução fixa: "reporte só o que afeta corretude, segurança ou os critérios; sem nada relevante, responda 'nada a reportar'".
 - Claude Code: se `~/.nabuco/config.json` tiver `"checadores_locais": true`, use `nabuco-<papel>` em vez de `nabuco:<papel>`.
 - Codex: depois de cada checador, rode `git status --porcelain` — se um checador alterou arquivos, mostre ao usuário antes de seguir.

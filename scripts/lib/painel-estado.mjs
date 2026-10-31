@@ -60,15 +60,16 @@ function linhaDoTempo(evs) {
     .map(e => ({ ts: typeof e.ts === 'string' ? e.ts : null, tipo: e.tipo, papel: typeof e.papel === 'string' ? e.papel : null, dados: enxuto(e.dados) }));
 }
 
-export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora }) {
+// `funcionarios` (gerente + papéis) e `escritores`: padrão nos embutidos; o servidor inclui os contratados.
+export function montarEstado({ eventos, tarefa, projeto, nomes, avatares, limite, agora, funcionarios: equipe = FUNCIONARIOS, escritores }) {
   const evs = lista(eventos);
   const evsTarefa = lista(tarefa?.eventos);
   const limite30 = agora - EXPIRA;
   const limite5 = agora - JANELA_ATIVIDADE;
-  const metricas = calcularMetricas(evs);
+  const metricas = calcularMetricas(evs, { papeis: equipe, escritores });
   const fase = tarefa?.estado?.fase;
 
-  const funcionarios = FUNCIONARIOS.map(papel => {
+  const funcionarios = equipe.map(papel => {
     let estado = 'ocioso';
     let recentes5;
     if (papel === 'gerente') {
