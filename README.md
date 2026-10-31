@@ -45,6 +45,7 @@ Requisitos: Node 20+ e git. O repositório é privado: os harnesses usam as suas
 | Auditar uma release | `/nabuco:release` | `$release` |
 | Vigiar segurança do ambiente e dependências | `/nabuco:vigia` | `$vigia` |
 | Contratar um funcionário novo | `/nabuco:contratar` | `$contratar` |
+| Relatório do que o time fez num período | `/nabuco:relatorio` | `$relatorio` |
 
 Cada tarefa vive em `.nabuco/tarefas/<data>-<slug>/` no projeto (`plano.md`, `progresso.md`, `criterios.json`, `estado.json`, `eventos.jsonl`). Adicione `.nabuco/` ao `.gitignore` se não quiser versionar.
 
@@ -105,6 +106,15 @@ Nunca mostra um segredo inteiro (só os 4 primeiros caracteres e `…`), nunca r
 - Por linha de comando: `node <plugin>/scripts/contratar.mjs validar|novo --de <json>`, `listar`, `instalar [--papel p]` (depois de editar o registro; o `/nabuco:setup` também reinstala) e `remover --papel p` (apaga os agentes e o registro; as lições e os casos ficam, e recontratar com o mesmo nome herda).
 
 Nunca sobrescreve um agente `nabuco-<papel>` que não seja do registro. No Codex com sandbox, se a instalação falhar com `EPERM`, rode `contratar.mjs instalar` num terminal comum.
+
+## Relatório
+
+`/nabuco:relatorio` (`$relatorio`) resume em Markdown o que o time fez num período, a partir de `~/.nabuco/historico.jsonl`: resumo, tarefas (desfecho, duração, rodadas, achados, gate, critérios que falharam), checadores, escapes, cérebro (casos e lições), funcionários (execuções, tempo, modelo/effort, tokens e métricas) e **qualidade dos dados** (linhas ilegíveis, execuções sem duração ou sem papel; período sem eventos aparece como "nenhum evento no período", nunca como relatório limpo).
+- Período: `--dias N` (padrão 7), `--desde AAAA-MM-DD [--ate AAAA-MM-DD]` ou `--desde-release` (data da última tag semver). Escopo: `--projeto atual` (padrão) ou `todos`. `--json` para os dados crus.
+- `--gravar` salva em `.nabuco/relatorios/<desde>_<ate>.md` (ou `~/.nabuco/relatorios/` com `--projeto todos`); sem ele, só mostra.
+- Tokens (entrada, saída, cache leitura/escrita) vêm do transcript do agente no Claude Code, somados no fim de cada funcionário do nabuco; Codex e eventos antigos ficam como "não medido". Sem preço em dinheiro.
+
+Só lê os dados do nabuco; não traz caminhos da máquina nem conteúdo de transcrições, e nunca envia o relatório a lugar nenhum.
 
 ## Modelos por funcionário
 

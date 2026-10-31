@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -20,6 +21,43 @@ export function normalizarPapel(agentType, validos = PAPEIS) {
   const p = s.replace(/^nabuco[:-]/, '');
   if (PAPEIS.includes(p)) return p;
   return p !== s && validos.includes(p) ? p : null;
+}
+
+// Transcript maior que isso não é lido: o hook não pode atrasar o agente (fica "não medido").
+export const MAX_TRANSCRIPT = 20 * 1024 * 1024;
+const contagem = v => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+
+// Soma o `message.usage` das mensagens do assistente no transcript JSONL do subagente (agent_transcript_path
+// do SubagentStop). O Claude Code grava uma linha por bloco de conteúdo repetindo o mesmo usage: conta cada
+// message.id (ou requestId) uma vez, pela última linha. Só os números saem daqui, nunca o conteúdo.
+// Qualquer problema (caminho ausente, não .jsonl, grande demais, sem usage) => null.
+export function somarTokens(caminho, max = MAX_TRANSCRIPT) {
+  try {
+    if (typeof caminho !== 'string' || !caminho.endsWith('.jsonl')) return null;
+    const arq = /^~[\\/]/.test(caminho) ? join(homedir(), caminho.slice(2)) : caminho;
+    const st = statSync(arq);
+    if (!st.isFile() || st.size > max) return null;
+    const porMensagem = new Map();
+    let semId = 0;
+    for (const linha of readFileSync(arq, 'utf8').split('\n')) {
+      if (!linha.includes('"usage"')) continue;
+      let e;
+      try { e = JSON.parse(linha); } catch { continue; }
+      const u = e?.type === 'assistant' ? e.message?.usage : null;
+      if (!u || typeof u !== 'object') continue;
+      const id = e.message.id ?? e.requestId ?? `sem-id-${semId++}`;
+      porMensagem.set(id, u);
+    }
+    if (!porMensagem.size) return null;
+    const t = { entrada: 0, saida: 0, cache_leitura: 0, cache_escrita: 0 };
+    for (const u of porMensagem.values()) {
+      t.entrada += contagem(u.input_tokens);
+      t.saida += contagem(u.output_tokens);
+      t.cache_leitura += contagem(u.cache_read_input_tokens);
+      t.cache_escrita += contagem(u.cache_creation_input_tokens);
+    }
+    return t;
+  } catch { return null; }
 }
 
 const CAUDA = 2 * 1024 * 1024; // do histórico global, só o fim interessa: o início é recente
@@ -71,6 +109,11 @@ function modoHook() {
   const cfg = papel ? configDe(carregarModelosTodos(RAIZ_PLUGIN), harness === 'codex' ? 'codex' : 'claude', papel) : null;
   if (cfg) { dados.modelo = cfg.model ?? 'herdado'; dados.effort = cfg.effort; }
   if (ini) dados.duracao_ms = Date.now() - Date.parse(ini.ts);
+  if (tipo === 'agente_fim') {
+    // consumo só dos funcionários do nabuco (o transcript de agente alheio nem é aberto)
+    const tokens = papel ? somarTokens(payload.agent_transcript_path) : null;
+    if (tokens) dados.tokens = tokens;
+  }
   registrar({ tipo, papel, dados, projeto, harness });
 }
 

@@ -172,3 +172,15 @@ test('tarefa: reconhece contratados (listar, nabuco-<p>, checador contratado em 
   assert.match(t, /checador contratado/i);
   assert.match(t, /checador contratado[^\n]*paralelo/i);
 });
+
+test('relatorio: roda o script, mostra, oferece --gravar e nunca envia sem pedido', () => {
+  assert.ok(skills.includes('relatorio'));
+  const r = lerSkill('relatorio');
+  for (const s of ['relatorio.mjs"', '--dias', '--desde', '--ate', '--desde-release', '--projeto todos', '--json', '--gravar',
+    '.nabuco/relatorios/', '~/.nabuco/relatorios/', 'Qualidade dos dados', 'Nenhum evento no período', 'não medido', '/nabuco:relatorio', '$relatorio']) {
+    assert.ok(r.includes(s), `faltou "${s}"`);
+  }
+  assert.match(r, /nunca envie/i);
+  assert.match(r, /nada foi conferido/);
+  assert.match(r, /ok do usuário[^\n]*--gravar/);
+});

@@ -10,18 +10,24 @@ const tempo = e => { const t = Date.parse(e.ts); return Number.isNaN(t) ? -Infin
 
 // Lê ~/.nabuco/historico.jsonl; arquivo ausente => []; ignora linhas inválidas e eventos sem `tipo` textual.
 export function lerHistorico(home) {
-  const arq = join(home, 'historico.jsonl');
-  if (!existsSync(arq)) return [];
-  return parsearLinhas(readFileSync(arq, 'utf8'));
+  return lerHistoricoDetalhado(home).eventos;
 }
 
-function parsearLinhas(texto, eventos = []) {
+// Como lerHistorico, mas conta o que ignorou: { eventos, ilegiveis, existe } (ilegível = JSON inválido ou sem `tipo`).
+export function lerHistoricoDetalhado(home) {
+  const arq = join(home, 'historico.jsonl');
+  if (!existsSync(arq)) return { eventos: [], ilegiveis: 0, existe: false };
+  const q = { ilegiveis: 0 };
+  return { eventos: parsearLinhas(readFileSync(arq, 'utf8'), [], q), ilegiveis: q.ilegiveis, existe: true };
+}
+
+function parsearLinhas(texto, eventos = [], q = null) {
   for (const linha of texto.split(/\r?\n/)) {
     if (!linha.trim()) continue;
-    try {
-      const e = JSON.parse(linha);
-      if (ehObj(e) && typeof e.tipo === 'string') eventos.push(e);
-    } catch { /* linha corrompida: ignora */ }
+    let e = null;
+    try { e = JSON.parse(linha); } catch { /* linha corrompida: ignora */ }
+    if (ehObj(e) && typeof e.tipo === 'string') eventos.push(e);
+    else if (q) q.ilegiveis++;
   }
   return eventos;
 }
@@ -118,9 +124,10 @@ function janela(eventos, n = JANELA_TAREFAS) {
 // Com `{ fontes: true }`, cada papel ganha `fontes: { [indicador]: number[] }` — índices em `eventos` (o array
 // recebido) dos eventos que alimentaram o indicador. Sem a opção, a saída é a mesma da Fase 2.
 // `papeis`/`escritores`: padrão nos embutidos; quem chama inclui os contratados (scripts/lib/time.mjs).
-export function calcularMetricas(eventos, { fontes: comFontes = false, papeis = PAPEIS_CEREBRO, escritores = ESCRITORES } = {}) {
+// `janela`: quantas tarefas fechadas mais recentes entram (padrão JANELA_TAREFAS; Infinity = todas).
+export function calcularMetricas(eventos, { fontes: comFontes = false, papeis = PAPEIS_CEREBRO, escritores = ESCRITORES, janela: n = JANELA_TAREFAS } = {}) {
   const pares = (Array.isArray(eventos) ? eventos : []).map((e, i) => ({ e, i })).filter(({ e }) => ehObj(e) && typeof e.tipo === 'string');
-  const naJanela = janela(pares.map(p => p.e));
+  const naJanela = janela(pares.map(p => p.e), n);
   // eventos da janela, por tarefa
   const porTarefa = new Map();
   for (const p of pares) {
