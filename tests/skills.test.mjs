@@ -234,3 +234,33 @@ test('commit por item da fila: lista exata via T arquivos-novos --tarefa, nunca 
     assert.match(txt, /não (for )?confiável[^\n]*pergunte/i, `${nome}: lista não confiável → pergunta`);
   }
 });
+
+test('tarefa: boas práticas do Gerente nas seções certas (linha de base, suposições, antitrapaça, travou-mude, checks, fila)', () => {
+  const t = lerSkill('tarefa');
+  const secao = n => t.slice(t.indexOf(`## ${n}.`), t.indexOf(`## ${n + 1}.`) === -1 ? t.indexOf('## Sempre') : t.indexOf(`## ${n + 1}.`));
+  const tem = (n, re, o) => assert.match(secao(n), re, `§${n}: ${o}`);
+  tem(1, /maior que a mudança[^\n]*reclassifique[^\n]*diga ao usuário/i, 'proporcionalidade');
+  tem(2, /suposições[^\n]*pergunte antes[^\n]*uma (pergunta )?por vez[^\n]*no máximo três/i, 'suposições');
+  tem(1, /`sensivel` não desce[^\n]*auth, pagamento, dados pessoais, migrations, infra, API pública/i, 'sensível não desce');
+  tem(2, /não-objetivos/i, 'não-objetivos no plano');
+  // pergunta antes do plano aprovado volta a planejando (em executando, criterio-editar exigiria --ok-usuario)
+  tem(2, /pergunte antes de planejar[^\n]*fase aguardando_usuario[^\n]*`T fase planejando`/i, 'pergunta do §2 retoma em planejando');
+  assert.match(t.slice(t.indexOf('## Sempre')), /ao retomar: `T fase planejando` se o plano ainda não foi aprovado, senão `T fase executando`/, 'Sempre distingue a retomada');
+  tem(3, /linha de base, antes de `T fase aguardando_aprovacao`[^\n]*`T aprovar`[^\n]*suíte[^\n]*progresso\.md/i, 'linha de base antes da aprovação');
+  assert.ok(secao(3).indexOf('Linha de base') < secao(3).indexOf('T fase aguardando_aprovacao`, mostre'), 'linha de base vem antes do pedido de aprovação');
+  tem(3, /precisa falhar antes/i, 'critério novo falha antes');
+  tem(3, /um passo = um comportamento[^\n]*critério/i, 'tamanho do passo');
+  tem(3, /estrutural[^\n]*separad/i, 'estrutural separado de comportamental');
+  tem(3, /`ui`[^\n]*executa de verdade/i, 'prova real em UI');
+  tem(4, /critério (deste|do) passo[^\n]*fora[^\n]*descartado/i, 'briefing completo');
+  tem(4, /antes de marcar `passou`[^\n]*diff[^\n]*apagado, pulado ou afrouxado fora do que o plano aprovado pede/i, 'antitrapaça');
+  tem(4, /falhou duas vezes com o mesmo escritor[^\n]*reescreva o passo[^\n]*terceira[^\n]*fase aguardando_usuario/i, 'travou, mude');
+  tem(5, /lint, typecheck e (a )?suíte[^\n]*antes[^\n]*checadores[^\n]*linha de base: falha nova volta ao escritor; falha que já existia vai no resumo ao usuário/i, 'checks antes dos checadores, contra a linha de base');
+  tem(5, /funcionalidade não pedida[^\n]*abstração especulativa[^\n]*código morto/i, 'checadores pegam excesso');
+  tem(5, /achado (alto|de severidade alta) ou médio[^\n]*linha citada[^\n]*derrub/i, 'validar achado antes de corrigir');
+  const auditoria = /mais de 3 itens concluídos[^\n]*suíte completa[^\n]*Revisor[^\n]*diff acumulado[^\n]*primeira `base`[^\n]*não rastreados novos de cada item \(`T arquivos-novos --tarefa <nome>`\)[^\n]*usuário[^\n]*tarefa nova/i;
+  tem(7, auditoria, 'auditoria da fila');
+  const f = lerSkill('fila');
+  assert.match(f.slice(f.indexOf('## 3. Fim da fila'), f.indexOf('## Regras')), auditoria, 'fila §3: auditoria da fila');
+  tem(7, /docs\//, 'decisão duradoura em docs/');
+});

@@ -28,6 +28,7 @@ Cada item vira uma tarefa comum: você é o Gerente e segue `$NABUCO/skills/tare
 
 ## 3. Fim da fila
 - Sem item pendente (`F proximo` diz "nenhum item pendente"): resumo curto de cada item (feito/abandonado, tarefa, critérios) e dos commits feitos, se houve.
+- Mais de 3 itens concluídos: antes de encerrar a fila, rode a suíte completa e chame o Revisor no diff acumulado desde a primeira `base` (a do primeiro item), mais os não rastreados novos de cada item (`T arquivos-novos --tarefa <nome>`); achados vão ao usuário com a proposta de uma tarefa nova.
 - Ofereça a retrospectiva **uma vez**, no fim da fila (não a cada item), listando as tarefas com falhas (critério que falhou, achado alto ou médio, rodada de correção): `/nabuco:retro` no Claude Code, `$retro` no Codex.
 
 ## Regras

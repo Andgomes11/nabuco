@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validarModelos, validarPapel } from '../scripts/lib/validar.mjs';
-import { gerarAgenteClaude, gerarAgenteCodex } from '../scripts/lib/gerar.mjs';
+import { gerarAgenteClaude, gerarAgenteCodex, REGRAS_DO_TIME } from '../scripts/lib/gerar.mjs';
 import { construir, escrever, diferencas } from '../scripts/lib/build.mjs';
 import { PAPEIS } from '../scripts/lib/constantes.mjs';
 import { parseFrontmatter } from '../scripts/lib/frontmatter.mjs';
@@ -43,7 +43,7 @@ test('gerar: texto hostil continua válido e preservado em YAML/TOML', () => {
   const t = gerarAgenteCodex('rev', fm, corpo, { model: null, effort: 'high' });
   assert.doesNotMatch(t, /^model = /m); // null => herda
   const instr = t.match(/^developer_instructions = (.*)$/m)[1];
-  assert.equal(JSON.parse(instr), corpo.trim()); // string básica TOML == string JSON
+  assert.equal(JSON.parse(instr), corpo.trim() + '\n\n' + REGRAS_DO_TIME); // string básica TOML == string JSON
   assert.match(t, /^name = "nabuco-rev"$/m);
 });
 
@@ -89,4 +89,30 @@ test('escrever remove gerados obsoletos', () => {
   assert.ok(!existsSync(join(d, 'agents', 'velho.md')));
   assert.deepEqual(diferencas(d, r.arquivos), []);
   rmSync(d, { recursive: true, force: true });
+});
+
+// Corpo de agente gerado: o .md do Claude depois do frontmatter; o developer_instructions do toml do Codex.
+const corpoGerado = (rel, txt) => rel.endsWith('.md') ? txt.slice(txt.indexOf('\n---\n', 4) + 5) : JSON.parse(txt.match(/^developer_instructions = (.*)$/m)[1]);
+
+test('regras do time: todo agente embutido gerado (Claude e Codex) tem a seção uma vez, antes de Entrega', () => {
+  const fonte = readFileSync(join(raiz, 'papeis', 'comum', 'regras-do-time.md'), 'utf8').replace(/\r\n?/g, '\n').trim();
+  assert.match(fonte, /^## Regras do time\n/);
+  const { arquivos } = construir(raiz);
+  assert.equal(arquivos.size, PAPEIS.length * 2);
+  for (const [rel, txt] of arquivos) {
+    const corpo = corpoGerado(rel, txt);
+    assert.ok(corpo.includes(fonte), `${rel}: sem o texto de papeis/comum/regras-do-time.md`);
+    assert.equal(corpo.split('## Regras do time').length, 2, `${rel}: seção repetida`);
+    const r = corpo.indexOf('## Regras do time'), e = corpo.search(/^## Entrega/m);
+    assert.ok(e > r && r > 0, `${rel}: Regras do time precisa vir antes de Entrega`);
+  }
+});
+
+test('regras do time: sem seção Entrega, vão no fim; papeis/comum não vira papel', () => {
+  const fm = { descricao: 'd' };
+  const c = gerarAgenteClaude('rev', fm, 'corpo\n', { model: 'opus', effort: 'high' });
+  assert.match(c, /\ncorpo\n\n## Regras do time\n[^]*\n$/);
+  const t = JSON.parse(gerarAgenteCodex('rev', fm, 'corpo', { model: null, effort: 'high' }).match(/^developer_instructions = (.*)$/m)[1]);
+  assert.match(t, /^corpo\n\n## Regras do time\n/);
+  assert.ok(!construir(raiz).papeis.includes('comum'));
 });
