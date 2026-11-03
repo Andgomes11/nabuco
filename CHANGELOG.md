@@ -4,6 +4,10 @@ Formato simplificado do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.
 
 ## Não lançado
 
+### Corrigido
+- `setup.mjs --cerebro-remoto` agora junta dois cérebros criados em máquinas diferentes (sem ancestral comum) em vez de desistir. Lições locais com ID repetido ganham o próximo número livre (o remoto nunca muda; IDs vistos nos dois históricos ficam reservados); eventos do histórico local e a linha "recorrência de:" dos casos acompanham o ID novo; caso com o mesmo caminho e conteúdo diferente vira `-2`; `.gitignore` e `.gitattributes` viram a união; o texto livre do arquivo de lições é preservado. A saída lista as renumerações e avisa que tarefas ativas citam os IDs antigos.
+- Quando não dá para juntar com segurança (outro arquivo em conflito, lição renumerada que mudou de escopo, lição de projeto aposentada com o mesmo ID em dois projetos ou sem projeto registrado), o setup aborta, o `~/.nabuco` volta ao estado de antes e a saída lista o motivo.
+
 ## 0.9.0 — 2026-10-31
 
 ### Adicionado

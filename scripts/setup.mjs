@@ -10,6 +10,7 @@ import { lerJson, escreverJson } from './lib/json.mjs';
 import { construir, diferencas } from './lib/build.mjs';
 import { lerTime } from './lib/time.mjs';
 import { garantirCerebroGit } from './sincronizar.mjs';
+import { juntarCerebros } from './lib/juntar-cerebros.mjs';
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECADORES = ['arquiteto', 'revisor', 'seguranca', 'tester'];
@@ -133,15 +134,36 @@ if (v['cerebro-remoto'] !== undefined) {
     if (local.trim()) appendFileSync(arqHist, local.endsWith('\n') ? local : local + '\n');
     ok(`cérebro trazido de ${url}`);
   }
+  // como estava antes do setup: se a junção de cérebros divergentes falhar, volta para cá
+  const headAntes = temCommit() ? git(['rev-parse', 'HEAD']).stdout.trim() : null;
+  const arquivosAntes = Object.fromEntries(['.gitignore', '.gitattributes'].map(n => [n, existsSync(join(home, n)) ? readFileSync(join(home, n), 'utf8') : null]));
   garantirCerebroGit(home, git);
   git(['add', '-A']);
   if (git(['diff', '--cached', '--quiet']).status === 1) git(['commit', '-q', '-m', 'sync: configura sincronização']);
   if (remotoTem && temCommit()) {
-    const m = git(['merge', '-q', '--no-edit', '--allow-unrelated-histories', 'origin/main']);
-    if (m.status !== 0) {
-      git(['merge', '--abort']);
-      console.error(`❌ o cérebro local e o remoto divergem e não deu para juntar sozinho: ${erro(m)}`);
-      process.exit(1);
+    if (git(['merge-base', 'HEAD', 'origin/main']).status === 0) {
+      const m = git(['merge', '-q', '--no-edit', '--allow-unrelated-histories', 'origin/main']);
+      if (m.status !== 0) {
+        git(['merge', '--abort']);
+        console.error(`❌ o cérebro local e o remoto divergem e não deu para juntar sozinho: ${erro(m)}`);
+        process.exit(1);
+      }
+    } else {
+      // cérebros criados separados (um em cada máquina): lib/juntar-cerebros.mjs
+      const j = juntarCerebros(home, git, { alvo: headAntes });
+      if (!j.ok) {
+        for (const [n, txt] of Object.entries(arquivosAntes)) {
+          if (txt === null) rmSync(join(home, n), { force: true });
+          else writeFileSync(join(home, n), txt);
+        }
+        console.error(`❌ o cérebro local e o remoto divergem e não deu para juntar sozinho: ${j.conflitos.length ? `conflito em ${j.conflitos.join(', ')}` : j.erro}`);
+        console.error(`   ${home} ficou como estava; resolva esses arquivos (aqui ou no remoto) e rode o setup de novo`);
+        process.exit(1);
+      }
+      ok('cérebro desta máquina juntado ao remoto');
+      if (j.licoes.length) console.log(`ℹ️ lições renumeradas: ${j.licoes.map(([a, n]) => `${a} → ${n}`).join(', ')}`);
+      if (j.casos.length) console.log(`ℹ️ casos renomeados: ${j.casos.map(([a, n]) => `${a} → ${n}`).join(', ')}`);
+      if (j.licoes.length) aviso(`tarefas ativas em projetos desta máquina ainda citam os IDs antigos (${j.licoes.map(([a, n]) => `${a} → ${n}`).join(', ')}); ao retomá-las, use os novos`);
     }
   }
   git(['branch', '-q', '-M', 'main']);
