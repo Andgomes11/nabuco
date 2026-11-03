@@ -358,3 +358,70 @@ test('papéis: práticas de checagem no Revisor, Tester e Segurança', () => {
     assert.doesNotMatch(String(dados.ferramentas), re, `${arq}: continua sem escrita`);
   }
 });
+
+test('práticas de entrega: design-web, design-mobile, Docs, DevOps e CHANGELOG', () => {
+  const tem = (rel, re, o) => assert.match(ler(...rel.split('/')), re, `${rel}: ${o}`);
+  const web = 'skills/design-web/SKILL.md';
+  tem(web, /serviria para qualquer produto parecido[^\n]*refaça/i, 'revisar a direção');
+  tem(web, /um elemento memorável[^\n]*resto quieto/i, 'um elemento memorável');
+  tem(web, /primitivos[^\n]*semânticos[^\n]*componentes usam só os semânticos/i, 'primitivos x semânticos');
+  tem(web, /arquivo de tokens novo[^\n]*DTCG 2025\.10[^\n]*`\$value`[^\n]*`\$type`[^\n]*já existe mantém o formato dele/, 'DTCG só no arquivo novo');
+  tem(web, /WCAG 2\.2 AA/, 'WCAG 2.2 AA');
+  tem(web, /≥ 24×24 px[^\n]*\(44 px em toque: AAA\/HIG\)/i, 'alvos 24 (AA) e 44 (AAA/HIG)');
+  tem(web, /foco nunca fica escondido[^\n]*fixo/i, 'foco não escondido');
+  tem(web, /arrastar[^\n]*alternativa por clique/i, 'alternativa ao arrastar');
+  tem(web, /colar a senha[^\n]*gerenciador de senhas/i, 'autenticação acessível');
+  tem(web, /não peça de novo[^\n]*já informado/i, 'sem pedir de novo');
+  tem(web, /hierarquia por peso e cor[^\n]*cinza sobre fundo colorido/i, 'hierarquia por peso e cor');
+  tem(web, /ao lado do campo[^\n]*específic[^\n]*próximo passo[^\n]*sem culpar[^\n]*preserv/i, 'mensagens de erro');
+  tem(web, /estado vazio[^\n]*ação/i, 'estado vazio com ação');
+  tem(web, /Inter\/Roboto\/Arial\/Space Grotesk[^\n]*creme com terracota[^\n]*eyebrow/i, 'lista de cara de IA');
+  tem(web, /escolha o substituto/i, 'escolha o substituto');
+  tem(web, /só pelo teclado/i, 'navegar só pelo teclado');
+  tem(web, /algo que você acrescentou não faz falta, remova um elemento antes de entregar/i, 'remover um elemento acrescentado');
+  tem(web, /4\.5:1/, 'mantém o contraste');
+  assert.ok(existsSync(join(RAIZ, 'skills', 'design-web', 'NOTICE')), 'design-web: mantém o NOTICE');
+  const mob = 'skills/design-mobile/SKILL.md';
+  tem(mob, /Liquid Glass[^\n]*Material 3 Expressive[^\n]*componentes nativos atualizados/i, 'Liquid Glass e M3 Expressive pelos nativos');
+  tem(mob, /regra[^\n]*não conferiu na página oficial/i, 'não cita regra não conferida');
+  tem(mob, /checklist\.md/, 'mantém o checklist');
+  const chk = 'skills/design-mobile/checklist.md';
+  tem(chk, /Reduzir transparência[^\n]*Aumentar contraste[^\n]*\(iOS; no Android, contraste\/texto de alto contraste\)/i, 'transparência e contraste por plataforma');
+  tem(chk, /swipe[^\n]*alternativa por toque/i, 'alternativa ao swipe');
+  tem('papeis/docs.md', /Diátaxis[^\n]*tutorial[^\n]*how-to[^\n]*referência[^\n]*explicação/i, 'Diátaxis');
+  tem('papeis/docs.md', /Keep a Changelog[^\n]*Não lançado[^\n]*grupos[^\n]*que o CHANGELOG do projeto já usa/i, 'Keep a Changelog com os grupos do projeto');
+  tem('papeis/docs.md', /nunca cópia do git log[^\n]*breaking changes/i, 'para o usuário, com breaking changes');
+  tem('papeis/docs.md', /README começa pelo problema[^\n]*instalação/i, 'README pelo problema e instalação');
+  tem('papeis/docs.md', /AGENTS\.md\/CLAUDE\.md[^\n]*não descobre lendo o código[^\n]*curto/i, 'AGENTS/CLAUDE curtos');
+  tem('papeis/docs.md', /llms\.txt[^\n]*existir/i, 'llms.txt quando existir');
+  tem('papeis/docs.md', /rod(e|ar) o exemplo[^\n]*você não tem Bash: liste em decisões o comando exato[^\n]*Gerente rodar[^\n]*evidência que não rodou/i, 'rodar o exemplo via Gerente');
+  tem('papeis/docs.md', /Edite \*\*somente\*\* arquivos de documentação[^\n]*`llms\.txt`/, 'llms.txt nos editáveis');
+  const dev = 'papeis/devops.md';
+  tem(dev, /SHA completo[^\n]*comentário da versão[^\n]*`git ls-remote --tags https:\/\/github\.com\/<dono>\/<repo>`[^\n]*tag do comentário[^\n]*actions\.lock/i, 'actions por SHA conferido ou lock');
+  tem(dev, /digest[^\n]*providers?[^\n]*fixad/i, 'imagem por digest e providers fixados');
+  tem(dev, /`permissions:`[^\n]*mínim/i, 'permissions mínimas');
+  tem(dev, /`\$\{\{ \}\}` com dado controlado de fora \(`github\.event\.\*`, `github\.head_ref`, `inputs`\) em `run:` ou `script:`[^\n]*github-script[^\n]*`env:`/, 'sem dado externo em run/script');
+  tem(dev, /`pull_request_target`[^\n]*checkout[^\n]*`persist-credentials: false`[^\n]*`secrets: inherit`/, 'pull_request_target, persist-credentials e secrets inherit');
+  tem(dev, /OIDC[^\n]*proveniência[^\n]*plano pedir/i, 'OIDC e proveniência');
+  tem(dev, /multi-stage[^\n]*não-root[^\n]*`RUN --mount=type=secret`[^\n]*docker\.sock/i, 'Dockerfile');
+  tem(dev, /lockfile[^\n]*reprodutível[^\n]*`npm ci`/i, 'lockfile e instalação reprodutível');
+  tem(dev, /`fmt -check`[^\n]*`validate`[^\n]*`plan`[^\n]*só contra staging[^\n]*sem credenciais reais[^\n]*bloqueios[^\n]*`\*\.tfstate`/i, 'IaC com plan só em staging');
+  tem(dev, /Scripts de staging \(você escreve, não roda\)[^\n]*health check[^\n]*rollback[^\n]*expand-contract/i, 'staging: escreve, não roda');
+  tem(dev, /`actionlint`[^\n]*`zizmor`[^\n]*`hadolint`[^\n]*instalad[^\n]*não instale/i, 'validadores só se instalados');
+  tem(dev, /\*\*Nunca\*\* toque produção/, 'mantém o limite de produção');
+  for (const arq of ['docs.md', 'devops.md']) {
+    const p = ler('papeis', arq);
+    assert.ok(p.startsWith('---\n'), `${arq}: frontmatter`);
+    for (const s of ['## Limites', '## Entrega', '**lições usadas:**']) assert.ok(p.includes(s), `${arq}: faltou ${s}`);
+  }
+  const naoLancado = (ler('CHANGELOG.md').split(/^## Não lançado\s*$/m)[1] || '').split(/^## /m)[0];
+  for (const [re, o] of [
+    [/Regras do time/, 'Regras do time'],
+    [/^- Gerente[^\n]*linha de base[^\n]*antes de pedir a aprovação do plano/m, 'Gerente: linha de base antes da aprovação'],
+    [/^- Gerente[^\n]*`sensivel` não desce quando a mudança toca auth, pagamento, dados pessoais, migrations, infra ou API pública/m, 'Gerente: quando sensivel não desce'],
+    [/^- Papéis escritores[^\n]*`papeis\/dev\.md`/m, 'escritores'],
+    [/^- Papéis checadores[^\n]*`papeis\/revisor\.md`/m, 'checadores'],
+    [/^- Designer[^\n]*`skills\/design-web`/m, 'Designer'],
+    [/^- [^\n]*DevOps[^\n]*SHA completo/m, 'DevOps'],
+  ]) assert.match(naoLancado, re, `CHANGELOG: "Não lançado" — ${o}`);
+});

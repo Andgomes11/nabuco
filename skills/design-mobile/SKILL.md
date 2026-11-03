@@ -19,6 +19,7 @@ description: Diretrizes para interfaces mobile nativas e multiplataforma (iOS/Sw
 - Tipografia: use os estilos do sistema (Dynamic Type no iOS, type scale do M3 no Android) para escalar com a preferência do usuário.
 - Cores: use papéis semânticos (primary, surface, on-surface…) e suporte modo escuro desde o início.
 - Componentes: prefira os nativos (pickers, sheets, menus, switches) aos customizados.
+- Materiais novos (iOS 26 Liquid Glass, Android Material 3 Expressive): prefira os componentes nativos atualizados a imitar o efeito à mão. Não cite regra específica de uso que você não conferiu na página oficial.
 
 ## 3. Verificação
 Percorra **checklist.md** (nesta pasta) item a item e informe o resultado na entrega.

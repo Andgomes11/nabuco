@@ -4,6 +4,7 @@
 - [ ] Alvos de toque ≥ 44×44 pt (iOS) / ≥ 48×48 dp (Android), com espaçamento entre eles.
 - [ ] Ações principais alcançáveis com o polegar (parte inferior da tela).
 - [ ] Gestos têm alternativa visível (botão), nunca são o único caminho.
+- [ ] Todo swipe (apagar, arquivar, navegar) tem alternativa por toque.
 
 ## Layout
 - [ ] Respeita safe area (notch, ilha, barra de gestos) e insets do teclado.
@@ -19,6 +20,7 @@
 - [ ] Modo escuro completo (sem cores fixas que somem no escuro).
 - [ ] Estados de carregando, vazio, erro e sem conexão.
 - [ ] Respeita "reduzir movimento" do sistema.
+- [ ] Respeita Reduzir transparência e Aumentar contraste do sistema (iOS; no Android, contraste/texto de alto contraste) e os materiais translúcidos continuam legíveis.
 
 ## Plataforma
 - [ ] Navegação e voltar seguem o padrão da plataforma.
