@@ -264,3 +264,38 @@ test('tarefa: boas práticas do Gerente nas seções certas (linha de base, supo
   assert.match(f.slice(f.indexOf('## 3. Fim da fila'), f.indexOf('## Regras')), auditoria, 'fila §3: auditoria da fila');
   tem(7, /docs\//, 'decisão duradoura em docs/');
 });
+
+test('papéis: práticas de construção no Dev, Debugger e Arquiteto', () => {
+  const tem = (arq, re, o) => assert.match(ler('papeis', arq), re, `${arq}: ${o}`);
+  tem('dev.md', /falha pelo motivo certo/i, 'teste vermelho pelo motivo certo');
+  tem('dev.md', /nunca compara a saída da implementação com ela mesma/i, 'teste não tautológico');
+  tem('dev.md', /procure um equivalente e reuse[^\n]*asserç(ão|ões) a um teste existente/i, 'reusar e acrescentar asserção');
+  tem('dev.md', /assinatura[^\n]*não com remendos[^\n]*pontos de chamada/i, 'corrigir no lugar certo');
+  tem('dev.md', /assinatura[^\n]*consumidores fora do plano[^\n]*bloqueios/i, 'assinatura que sai do plano vai em bloqueios');
+  tem('dev.md', /como o usuário usaria/i, 'exercitar como o usuário');
+  tem('dev.md', /código morto que você criou/i, 'remove o próprio código morto');
+  tem('debugger.md', /stack trace inteiros?[^\n]*o que mudou/i, 'stack trace e o que mudou');
+  tem('debugger.md', /git bisect[^\n]*árvore limpa[^\n]*comando de reprodução[^\n]*`git bisect reset`/i, 'bisect com árvore limpa, comando de reprodução e reset');
+  tem('debugger.md', /não commitadas[^\n]*bloqueios/i, 'com mudanças não commitadas, sem bisect');
+  assert.doesNotMatch(ler('papeis', 'debugger.md'), /git stash/, 'debugger.md: nada de git stash');
+  tem('debugger.md', /reduza o caso ao mínimo/i, 'reduzir ao mínimo');
+  tem('debugger.md', /óbvio[^\n]*ambiente/i, 'óbvio primeiro');
+  tem('debugger.md', /instrumente as fronteiras[^\n]*caso parecido que funciona/i, 'fronteiras e caso que funciona');
+  tem('debugger.md', /uma coisa por vez[^\n]*hipótese → previsão → resultado/i, 'uma coisa por vez com diário');
+  tem('debugger.md', /remova a instrumentação[^\n]*desfazer o fix faz o teste voltar a falhar[^\n]*reaplique o fix[^\n]*regressão[^\n]*reprodução original[^\n]*suíte/i, 'limpa, desfaz, reaplica e só então roda tudo');
+  tem('debugger.md', /força bruta[^\n]*timeout[^\n]*retry[^\n]*catch genérico[^\n]*sleep/i, 'sem força bruta');
+  tem('debugger.md', /3 correções que não resolveram[^\n]*bloqueios/i, 'para depois de 3 correções');
+  tem('debugger.md', /cerebro\.mjs" buscar/, 'mantém a busca de lições');
+  tem('arquiteto.md', /ADRs?[^\n]*antes de propor/i, 'lê ADRs antes');
+  tem('arquiteto.md', /consumidores[^\n]*arquivo:linha/i, 'lista consumidores');
+  tem('arquiteto.md', /realmente diferentes[^\n]*mudança mínima[^\n]*consequências negativas/i, 'alternativas com a mínima');
+  tem('arquiteto.md', /complexidade que sobra[^\n]*conhecimento duplicado/i, 'julga pela complexidade');
+  tem('arquiteto.md', /confiança \(alta\/média\/baixa\)/i, 'recomendação com confiança');
+  tem('arquiteto.md', /arquivo existente[^\n]*modelo para o Dev/i, 'arquivo de modelo');
+  tem('arquiteto.md', /suíte verde/i, 'passos verdes');
+  tem('arquiteto.md', /pronto quando/i, 'pronto quando');
+  tem('arquiteto.md', /documentação da versão/i, 'confere API externa');
+  tem('arquiteto.md', /formato de ADR/i, 'entrega em ADR');
+  const { dados } = parseFrontmatter(ler('papeis', 'arquiteto.md'));
+  assert.doesNotMatch(String(dados.ferramentas), /Edit|Write|Bash/, 'arquiteto continua somente leitura');
+});
